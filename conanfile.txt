@@ -1,0 +1,5 @@
+[requires]
+toml11/3.6.0
+
+[generators]
+cmake
