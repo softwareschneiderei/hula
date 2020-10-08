@@ -1,0 +1,15 @@
+name = "cool_camera"
+
+[[attributes]]
+name = "binning"
+type = "long"
+
+[[attributes]]
+name = "exposure_time"
+type = "float"
+
+[[commands]]
+name = "record"
+return_type = "void"
+parameter_type = "void"
+
