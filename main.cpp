@@ -1,4 +1,6 @@
 #include <toml11/toml.hpp>
+#include <fmt/format.h>
+#include <iostream>
 
 enum class value_type
 {
@@ -73,12 +75,57 @@ struct device_server_spec
   std::vector<command> commands;
 };
 
+const char* tango_type_enum(value_type v)
+{
+  switch (v)
+  {
+  case value_type::long_t:
+    return "Tango::DEV_LONG";
+  case value_type::float_t:
+    return "Tango::DEV_FLOAT";
+  default:
+  case value_type::void_t:
+    return "Tango::DEV_VOID";
+  }
+}
+
+constexpr char* ATTRIBUTE_CLASS_TEMPLATE = R"(
+class {0}Attrib : public Tango::Attr
+{{
+public:
+  {0}Attrib()
+  : Tango::Attr("{1}", {2}, {3}) {{}}
+  ~{0}Attrib() override = default;
+  {4}
+}};
+)";
+
+std::string attribute_class(std::string const& class_prefix, std::string const& name, std::string const& type, std::string const& mutability, std::string const& members)
+{
+  return fmt::format(ATTRIBUTE_CLASS_TEMPLATE, class_prefix, name, type, mutability, members);
+}
+
+std::string attribute_class(attribute const& input)
+{
+  return attribute_class(input.name, input.name, tango_type_enum(input.type), "Tango::READ", "");
+}
+
+
 int main(int argc, char* argv[])
 {
   if (argc < 2)
-    return;
+    return 0;
 
   auto input = toml::parse(argv[1]);
   auto spec = toml::get<device_server_spec>(input);
+
+  std::ostream& out = std::cout;
+
+  for (auto const& each : spec.attributes)
+  {
+    out << attribute_class(each);
+    out << std::endl;
+  }
+
   return 0;
 }

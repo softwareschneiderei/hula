@@ -14,4 +14,5 @@ target_include_directories(hula
   PRIVATE .)
 
 target_link_libraries(hula
-  PUBLIC CONAN_PKG::toml11)
+  PUBLIC CONAN_PKG::toml11
+  PUBLIC CONAN_PKG::fmt)
