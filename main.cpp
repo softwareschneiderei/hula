@@ -1,6 +1,7 @@
 #include <toml11/toml.hpp>
 #include <fmt/format.h>
 #include <iostream>
+#include "name.hpp"
 
 enum class value_type
 {
@@ -8,6 +9,7 @@ enum class value_type
   long_t,
   float_t,
 };
+
 namespace toml
 {
   template<>
@@ -42,7 +44,7 @@ struct attribute
   {
   }
 
-  std::string name;
+  name name;
   value_type type = value_type::void_t;
 };
 
@@ -56,7 +58,7 @@ struct command
   {
   }
 
-  std::string name;
+  name name;
   value_type return_type = value_type::void_t;
   value_type parameter_type = value_type::void_t;
 };
@@ -70,7 +72,7 @@ struct device_server_spec
   {
   }
 
-  std::string name;
+  name name;
   std::vector<attribute> attributes;
   std::vector<command> commands;
 };
@@ -150,9 +152,9 @@ std::string attribute_class(std::string const& class_prefix, std::string const& 
 std::string attribute_class(std::string const& device_name, attribute const& input)
 {
   std::ostringstream str;
-  str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, device_name, cpp_type(input.type), input.name);
+  str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, device_name, cpp_type(input.type), input.name.snake_cased());
 
-  return attribute_class(input.name, input.name, tango_type_enum(input.type), "Tango::READ", str.str());
+  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), "Tango::READ", str.str());
 }
 
 std::string build_base_class(device_server_spec const& spec)
@@ -161,15 +163,15 @@ std::string build_base_class(device_server_spec const& spec)
   std::ostringstream str;
   for (auto const& each : spec.attributes)
   {
-    str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name);
+    str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name.snake_cased());
   }
 
-  return fmt::format(BASE_CLASS_TEMPLATE, spec.name, str.str());
+  return fmt::format(BASE_CLASS_TEMPLATE, spec.name.snake_cased(), str.str());
 }
 
 std::string build_adaptor_class(device_server_spec const& spec)
 {
-  return fmt::format(TANGO_ADAPTOR_CLASS_TEMPLATE, spec.name);
+  return fmt::format(TANGO_ADAPTOR_CLASS_TEMPLATE, spec.name.camel_cased());
 }
 
 int main(int argc, char* argv[])
@@ -187,7 +189,7 @@ int main(int argc, char* argv[])
 
   for (auto const& each : spec.attributes)
   {
-    out << attribute_class(spec.name, each);
+    out << attribute_class(spec.name.camel_cased(), each);
     out << std::endl;
   }
 

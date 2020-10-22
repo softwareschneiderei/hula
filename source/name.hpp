@@ -4,6 +4,7 @@
 class name
 {
 public:
+  name() = default;
   explicit name(std::string const& str);
 
   std::string snake_cased() const;
