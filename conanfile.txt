@@ -2,5 +2,8 @@
 toml11/3.6.0
 fmt/7.0.3
 
+[build_requires]
+catch2/2.13.2
+
 [generators]
 cmake
