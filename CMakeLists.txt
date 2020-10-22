@@ -7,6 +7,8 @@ endif()
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup(TARGETS)
 
+set(CMAKE_CXX_STANDARD 17)
+
 add_subdirectory(source)
 add_subdirectory(tests)
 
