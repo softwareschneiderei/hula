@@ -55,3 +55,29 @@ std::string name::camel_cased() const
 
   return str.str();
 }
+
+std::string name::dromedary_cased() const
+{
+  if (parts_.empty())
+    return "";
+
+  std::ostringstream str;
+  
+  bool first = false;
+  for (auto const& part : parts_)
+  {
+    if (part.empty())
+      continue;
+
+    if (!first)
+    {
+      str << part;
+      first = true;
+      continue;
+    }
+
+    str << static_cast<char>(std::toupper(part.front())) << (part.c_str() + 1);
+  }
+
+  return str.str();
+}

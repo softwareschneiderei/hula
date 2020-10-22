@@ -9,6 +9,7 @@ public:
 
   std::string snake_cased() const;
   std::string camel_cased() const;
+  std::string dromedary_cased() const;
 
 private:
   std::vector<std::string> parts_;

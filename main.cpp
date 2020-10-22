@@ -123,6 +123,16 @@ public:
 }};
 )";
 
+
+constexpr char const* TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE = R"(
+class {0}TangoClass : public Tango::DeviceClass
+{{
+public:
+  void attribute_factory(std::vector<Tango::Attr*>& attributes) override
+  {{{1}  }}
+}};
+)";
+
 constexpr char const* ATTRIBUTE_CLASS_TEMPLATE = R"(
 class {0}Attrib : public Tango::Attr
 {{
@@ -174,6 +184,21 @@ std::string build_adaptor_class(device_server_spec const& spec)
   return fmt::format(TANGO_ADAPTOR_CLASS_TEMPLATE, spec.name.camel_cased());
 }
 
+std::string build_device_class(device_server_spec const& spec)
+{
+  constexpr char const* CREATE_ATTRIBUTE_TEMPLATE = R"(
+    auto {0} = new {1}Attrib();
+    {0}->set_default_properties(Tango::UserDefaultAttrProp{{}});
+    attributes.push_back({0});
+)";
+  std::ostringstream str;
+  for (auto const& attribute : spec.attributes)
+  {
+    str << fmt::format(CREATE_ATTRIBUTE_TEMPLATE, attribute.name.dromedary_cased(), attribute.name.camel_cased());
+  }
+  return fmt::format(TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE, spec.name.camel_cased(), str.str());
+}
+
 int main(int argc, char* argv[])
 {
   if (argc < 2)
@@ -192,6 +217,8 @@ int main(int argc, char* argv[])
     out << attribute_class(spec.name.camel_cased(), each);
     out << std::endl;
   }
+
+  out << build_device_class(spec);
 
   return 0;
 }
