@@ -122,7 +122,26 @@ constexpr char const* TANGO_ADAPTOR_CLASS_TEMPLATE = R"(
 class {0}TangoAdaptor : public TANGO_BASE_CLASS
 {{
 public:
-  {1}_base* get();
+  {0}TangoAdaptor(Tango::DeviceClass* cl, char const* name, factory_type factory)
+  : TANGO_BASE_CLASS(cl, name)
+  , factory_(std::move(factory))
+  , impl_(factory_())
+  {{
+  }}
+
+  void init_device() override
+  {{
+    impl_.reset();
+    impl_ = factory_();
+  }}
+
+  {1}_base* get()
+  {{
+    return impl_.get();
+  }}
+private:
+  factory_type factory_;
+  std::unique_ptr<{1}_base> impl_;
 }};
 )";
 
@@ -131,8 +150,47 @@ constexpr char const* TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE = R"(
 class {0}TangoClass : public Tango::DeviceClass 
 {{
 public:
+  factory_type factory_;
+
+  explicit {0}TangoClass(std::string& name)
+  : Tango::DeviceClass(name)
+  {{
+  }}
+
+  static {0}TangoClass* instance()
+  {{
+    static std::unique_ptr<{0}TangoClass> instance_;
+    if (!instance_)
+    {{
+      std::string name("{0}");
+      instance_ = std::make_unique<{0}TangoClass>(name);
+    }}
+    return instance_.get();
+  }}
+
   void attribute_factory(std::vector<Tango::Attr*>& attributes) override
   {{{1}  }}
+  
+  void command_factory() override
+  {{
+  }}
+
+  void device_factory(Tango::DevVarStringArray const* devlist_ptr)
+  {{
+	  for (unsigned long i=0; i<devlist_ptr->length(); i++)
+	  {{
+		  device_list.push_back(new {0}TangoAdaptor(this, (*devlist_ptr)[i], factory_));
+	  }}
+
+	  for (unsigned long i=1; i<=devlist_ptr->length(); i++)
+	  {{
+		  auto dev = static_cast<{0}TangoAdaptor*>(device_list[device_list.size()-i]);
+		  if ((Tango::Util::_UseDb == true) && (Tango::Util::_FileDb == false))
+			  export_device(dev);
+		  else
+			  export_device(dev, dev->get_name().c_str());
+	  }}
+  }}
 }};
 )";
 
@@ -202,6 +260,52 @@ std::string build_device_class(device_server_spec const& spec)
   return fmt::format(TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE, spec.name.camel_cased(), str.str());
 }
 
+std::string build_class_factory(device_server_spec const& spec)
+{
+  constexpr char const* CLASS_FACTORY_TEMPLATE = R"(
+void Tango::DServer::class_factory()
+{{
+  add_class({0}TangoClass::instance());
+}}
+)";
+  return fmt::format(CLASS_FACTORY_TEMPLATE, spec.name.camel_cased());
+}
+
+std::string build_runner(device_server_spec const& spec)
+{
+  constexpr char const* RUNNER_TEMPLATE = R"(
+
+int {0}_base::register_and_run(int argc, char* argv[], factory_type factory)
+{{
+  try
+  {{
+		Tango::Util *tg = Tango::Util::init(argc,argv);
+
+    // Register the factory
+    {1}TangoClass::instance()->factory_ = std::move(factory);
+
+    // Run the server
+		tg->server_init(false);
+		tg->server_run();
+  }}
+  catch (std::exception const& e)
+  {{
+    std::cerr << "Uncaught exception: " << e.what() << "\nExiting..." << std::endl;
+    return EXIT_FAILURE;
+  }}
+  catch (CORBA::Exception const& e)
+  {{
+    Tango::Except::print_exception(e);
+    return EXIT_FAILURE;
+  }}
+
+  return EXIT_SUCCESS;
+}}
+
+)";
+  return fmt::format(RUNNER_TEMPLATE, spec.name.snake_cased(), spec.name.camel_cased());
+}
+
 int main(int argc, char* argv[])
 {
   if (argc < 3)
@@ -228,6 +332,7 @@ int main(int argc, char* argv[])
 #include "hula_{0}.hpp"
 #include <tango.h>
 
+using factory_type = {0}_base::factory_type;
 )";
   out << fmt::format(HULA_IMPLEMENTATION_HEADER, spec.name.snake_cased());
   out << build_adaptor_class(spec);
@@ -239,6 +344,8 @@ int main(int argc, char* argv[])
   }
 
   out << build_device_class(spec);
+  out << build_class_factory(spec);
+  out << build_runner(spec);
 
   return 0;
 }
