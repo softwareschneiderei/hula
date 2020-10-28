@@ -3,6 +3,7 @@ name = "cool_camera"
 [[attributes]]
 name = "binning"
 type = "long"
+access = ["read", "write"]
 
 [[attributes]]
 name = "exposure_time"
@@ -13,3 +14,17 @@ name = "record"
 return_type = "void"
 parameter_type = "void"
 
+[[commands]]
+name = "square"
+return_type = "long"
+parameter_type = "long"
+
+[[commands]]
+name = "report"
+return_type = "float"
+parameter_type = "void"
+
+[[commands]]
+name = "act"
+return_type = "void"
+parameter_type = "float"
