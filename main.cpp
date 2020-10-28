@@ -3,7 +3,7 @@
 #include <filesystem>
 #include "device_server_spec.hpp"
 
-const char* tango_type_enum(value_type v)
+constexpr const char* tango_type_enum(value_type v)
 {
   switch (v)
   {
@@ -15,6 +15,21 @@ const char* tango_type_enum(value_type v)
   case value_type::void_t:
     return "Tango::DEV_VOID";
   }
+}
+
+constexpr const char* tango_access_enum(access_type v)
+{
+  switch (v)
+  {
+  default:
+  case access_type::read_only:
+    return "Tango::READ";
+  case access_type::write_only:
+    return "Tango::WRITE";
+  case access_type::read_write:
+    return "Tango::READ_WRITE";
+  }
+  
 }
 
 const char* cpp_type(value_type v)
@@ -139,11 +154,21 @@ public:
 
 constexpr char const* ATTRIBUTE_READ_FUNCTION_TEMPLATE = R"(
   {1} read_value{{}};
-  void read(Tango::DeviceImpl* dev, Tango::Attribute& att) override
+  void read(Tango::DeviceImpl* dev, Tango::Attribute& attr) override
   {{
     auto impl = static_cast<{0}*>(dev)->get();
     read_value = impl->read_{2}();
-    att.set_value(&read_value);
+    attr.set_value(&read_value);
+  }}
+)";
+
+constexpr char const* ATTRIBUTE_WRITE_FUNCTION_TEMPLATE = R"(
+  void write(Tango::DeviceImpl* dev, Tango::WAttribute& attr) override
+  {{
+    auto impl = static_cast<{0}*>(dev)->get();
+    {1} arg{{}};
+    attr.get_write_value(arg);
+    impl->write_{2}(arg);
   }}
 )";
 
@@ -155,9 +180,18 @@ std::string attribute_class(std::string const& class_prefix, std::string const& 
 std::string attribute_class(std::string const& ds_name, attribute const& input)
 {
   std::ostringstream str;
-  str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name, cpp_type(input.type), input.name.snake_cased());
 
-  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), "Tango::READ", str.str());
+  if (is_readable(input.access))
+  {
+    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name, cpp_type(input.type), input.name.snake_cased());
+  }
+
+  if (is_writable(input.access))
+  {
+    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, cpp_type(input.type), input.name.snake_cased());
+  }
+
+  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), tango_access_enum(input.access), str.str());
 }
 
 std::string build_base_class(device_server_spec const& spec)
@@ -169,7 +203,14 @@ std::string build_base_class(device_server_spec const& spec)
     str << "\n  // attributes\n";
     for (auto const& each : spec.attributes)
     {
-      str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name.snake_cased());
+      if (is_readable(each.access))
+      {
+        str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name.snake_cased());
+      }
+      if (is_writable(each.access))
+      {
+        str << fmt::format("  virtual void write_{0}({1}) = 0;\n", each.name.snake_cased(), parameter_list(each.type));
+      }
     }
   }
 

@@ -6,7 +6,12 @@ class cool_camera : public cool_camera_base
 public:
   long read_binning() override
   {
-    return 42;
+    return binning_;
+  }
+
+  void write_binning(long rhs) override
+  {
+    binning_ = rhs;
   }
 
   float read_exposure_time() override
@@ -35,6 +40,7 @@ public:
   }
 private:
   float exposure_time_ = 0.05f;
+  long binning_ = 42;
 };
 
 int main(int argc, char* argv[])
