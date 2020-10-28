@@ -88,8 +88,7 @@ public:
   {{{1}  }}
   
   void command_factory() override
-  {{
-  }}
+  {{{2}  }}
 
   void device_factory(Tango::DevVarStringArray const* devlist_ptr)
   {{
@@ -128,7 +127,7 @@ constexpr char const* ATTRIBUTE_READ_FUNCTION_TEMPLATE = R"(
   {1} read_value{{}};
   void read(Tango::DeviceImpl* dev, Tango::Attribute& att) override
   {{
-    auto impl = static_cast<{0}TangoAdaptor*>(dev)->get();
+    auto impl = static_cast<{0}*>(dev)->get();
     read_value = impl->read_{2}();
     att.set_value(&read_value);
   }}
@@ -139,10 +138,10 @@ std::string attribute_class(std::string const& class_prefix, std::string const& 
   return fmt::format(ATTRIBUTE_CLASS_TEMPLATE, class_prefix, name, type, mutability, members);
 }
 
-std::string attribute_class(std::string const& device_name, attribute const& input)
+std::string attribute_class(std::string const& ds_name, attribute const& input)
 {
   std::ostringstream str;
-  str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, device_name, cpp_type(input.type), input.name.snake_cased());
+  str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name, cpp_type(input.type), input.name.snake_cased());
 
   return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), "Tango::READ", str.str());
 }
@@ -151,12 +150,51 @@ std::string build_base_class(device_server_spec const& spec)
 {
   // Build the members for the base class
   std::ostringstream str;
-  for (auto const& each : spec.attributes)
+  if (!spec.attributes.empty())
   {
-    str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name.snake_cased());
+    str << "  // attributes\n";
+    for (auto const& each : spec.attributes)
+    {
+      str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name.snake_cased());
+    }
+  }
+
+  if (!spec.commands.empty())
+  {
+    str << "  // commands\n";
+    for (auto const& each : spec.commands)
+    {
+      std::string parameter_list;
+      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type), each.name.snake_cased(), parameter_list);
+    }
   }
 
   return fmt::format(BASE_CLASS_TEMPLATE, spec.name.snake_cased(), str.str());
+}
+
+constexpr char const* COMMAND_CLASS_TEMPLATE = R"(
+class {0}Command : public Tango::Command
+{{
+public:
+  {0}Command()
+  : Tango::Command("{0}", {1}, {2}, "", "", Tango::OPERATOR)
+  {{}}
+
+  CORBA::Any* execute(Tango::DeviceImpl* dev, CORBA::Any const& input) override
+  {{{3}}}
+}};
+)";
+
+constexpr char const* COMMAND_VOID_TO_VOID_EXECUTE_TEMPLATE = R"(
+    auto impl = static_cast<{0}*>(dev)->get();
+    impl->{1}();
+    return new CORBA::Any();
+)";
+
+std::string command_class(std::string const& ds_name, command const& input)
+{
+  auto execute = fmt::format(COMMAND_VOID_TO_VOID_EXECUTE_TEMPLATE, ds_name, input.name.snake_cased());
+  return fmt::format(COMMAND_CLASS_TEMPLATE, input.name.camel_cased(), tango_type_enum(input.parameter_type), tango_type_enum(input.return_type), execute);
 }
 
 std::string build_adaptor_class(device_server_spec const& spec)
@@ -171,12 +209,22 @@ std::string build_device_class(device_server_spec const& spec)
     {0}->set_default_properties(Tango::UserDefaultAttrProp{{}});
     attributes.push_back({0});
 )";
-  std::ostringstream str;
+  std::ostringstream attribute_factory_impl;
   for (auto const& attribute : spec.attributes)
   {
-    str << fmt::format(CREATE_ATTRIBUTE_TEMPLATE, attribute.name.dromedary_cased(), attribute.name.camel_cased());
+    attribute_factory_impl << fmt::format(CREATE_ATTRIBUTE_TEMPLATE, attribute.name.dromedary_cased(), attribute.name.camel_cased());
   }
-  return fmt::format(TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE, spec.name.camel_cased(), str.str());
+  constexpr char const* CREATE_COMMAND_TEMPLATE = R"(
+    command_list.push_back(new {0}Command());
+)";
+  std::ostringstream command_factory_impl;
+  for (auto const& command : spec.commands)
+  {
+    command_factory_impl << fmt::format(CREATE_COMMAND_TEMPLATE, command.name.camel_cased());
+  }
+
+  return fmt::format(TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE,
+    spec.name.camel_cased(), attribute_factory_impl.str(), command_factory_impl.str());
 }
 
 std::string build_class_factory(device_server_spec const& spec)
@@ -260,8 +308,12 @@ using factory_type = {0}_base::factory_type;
 
   for (auto const& each : spec.attributes)
   {
-    out << attribute_class(spec.name.camel_cased(), each);
-    out << std::endl;
+    out << attribute_class(spec.ds_name, each) << std::endl;
+  }
+
+  for (auto const& each : spec.commands)
+  {
+    out << command_class(spec.ds_name, each) << std::endl;
   }
 
   out << build_device_class(spec);
