@@ -9,12 +9,43 @@ enum class value_type
   float_t,
 };
 
+enum class access_type
+{
+  read_only,
+  write_only,
+  read_write,
+};
+
+inline bool is_readable(access_type rhs)
+{
+  switch (rhs)
+  {
+  case access_type::read_only:
+  case access_type::read_write:
+    return true;
+  default:
+    return false;
+  }
+}
+
+inline bool is_writable(access_type rhs)
+{
+  switch (rhs)
+  {
+  case access_type::write_only:
+  case access_type::read_write:
+    return true;
+  default:
+    return false;
+  }
+}
+
 namespace toml
 {
   template<>
   struct from<value_type>
   {
-    static value_type from_toml(const value& v)
+    static value_type from_toml(value const& v)
     {
       auto code = v.as_string();
       if (code == "void")
@@ -32,6 +63,12 @@ namespace toml
       throw std::invalid_argument("Unknown type code: " + code.str);
     }
   };
+
+  template<>
+  struct from<access_type>
+  {
+    static access_type from_toml(value const& v);
+  };
 }
 
 struct attribute
@@ -40,11 +77,13 @@ struct attribute
   attribute(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
   , type(toml::find<value_type>(v, "type"))
+  , access(toml::find_or<access_type>(v, "access", access_type::read_only))
   {
   }
 
   name name;
   value_type type = value_type::void_t;
+  access_type access = access_type::read_only;
 };
 
 struct command
