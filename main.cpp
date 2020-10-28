@@ -31,12 +31,25 @@ const char* cpp_type(value_type v)
   }
 }
 
+std::string parameter_list(value_type type)
+{
+  switch(type)
+  {
+  case value_type::long_t:
+    return "long rhs";
+  case value_type::float_t:
+    return "float rhs";
+  default:
+  case value_type::void_t:
+    return "";
+  }
+}
+
 constexpr char const* BASE_CLASS_TEMPLATE = R"(
 class {0}_base
 {{
 public:
   virtual ~{0}_base() = default;
-
 {1}
   using factory_type = std::function<std::unique_ptr<{0}_base>()>;
   static int register_and_run(int argc, char* argv[], factory_type factory);
@@ -88,7 +101,8 @@ public:
   {{{1}  }}
   
   void command_factory() override
-  {{{2}  }}
+  {{
+{2}  }}
 
   void device_factory(Tango::DevVarStringArray const* devlist_ptr)
   {{
@@ -152,7 +166,7 @@ std::string build_base_class(device_server_spec const& spec)
   std::ostringstream str;
   if (!spec.attributes.empty())
   {
-    str << "  // attributes\n";
+    str << "\n  // attributes\n";
     for (auto const& each : spec.attributes)
     {
       str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name.snake_cased());
@@ -161,11 +175,10 @@ std::string build_base_class(device_server_spec const& spec)
 
   if (!spec.commands.empty())
   {
-    str << "  // commands\n";
+    str << "\n  // commands\n";
     for (auto const& each : spec.commands)
     {
-      std::string parameter_list;
-      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type), each.name.snake_cased(), parameter_list);
+      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type), each.name.snake_cased(), parameter_list(each.parameter_type));
     }
   }
 
@@ -181,20 +194,63 @@ public:
   {{}}
 
   CORBA::Any* execute(Tango::DeviceImpl* dev, CORBA::Any const& input) override
-  {{{3}}}
+  {{
+    auto impl = static_cast<{4}*>(dev)->get();{3}  }}
 }};
 )";
 
 constexpr char const* COMMAND_VOID_TO_VOID_EXECUTE_TEMPLATE = R"(
-    auto impl = static_cast<{0}*>(dev)->get();
-    impl->{1}();
+    impl->{0}();
     return new CORBA::Any();
 )";
 
+constexpr char const* COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE = R"(
+    return insert(impl->{0}());
+)";
+
+constexpr char const* COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE = R"(
+    {0} arg{{}};
+    extract(input, arg);
+    impl->{1}(arg);
+    return new CORBA::Any();
+)";
+
+constexpr char const* COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE = R"(
+    {0} arg{{}};
+    extract(input, arg);
+    return insert(impl->{1}(arg));
+)";
+
+std::string command_execute_impl(command const& cmd)
+{
+  if (cmd.parameter_type == value_type::void_t)
+  {
+    if (cmd.return_type == value_type::void_t)
+    {
+      return fmt::format(COMMAND_VOID_TO_VOID_EXECUTE_TEMPLATE, cmd.name.snake_cased());
+    }
+    else
+    {
+      return fmt::format(COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE, cmd.name.snake_cased());
+    }
+  }
+  else
+  {
+    if (cmd.return_type == value_type::void_t)
+    {
+      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE, cpp_type(cmd.parameter_type), cmd.name.snake_cased());
+    }
+    else
+    {
+      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE, cpp_type(cmd.parameter_type), cmd.name.snake_cased());
+    }
+  }
+}
+
 std::string command_class(std::string const& ds_name, command const& input)
 {
-  auto execute = fmt::format(COMMAND_VOID_TO_VOID_EXECUTE_TEMPLATE, ds_name, input.name.snake_cased());
-  return fmt::format(COMMAND_CLASS_TEMPLATE, input.name.camel_cased(), tango_type_enum(input.parameter_type), tango_type_enum(input.return_type), execute);
+  auto execute = command_execute_impl(input);
+  return fmt::format(COMMAND_CLASS_TEMPLATE, input.name.camel_cased(), tango_type_enum(input.parameter_type), tango_type_enum(input.return_type), execute, ds_name);
 }
 
 std::string build_adaptor_class(device_server_spec const& spec)
@@ -214,13 +270,12 @@ std::string build_device_class(device_server_spec const& spec)
   {
     attribute_factory_impl << fmt::format(CREATE_ATTRIBUTE_TEMPLATE, attribute.name.dromedary_cased(), attribute.name.camel_cased());
   }
-  constexpr char const* CREATE_COMMAND_TEMPLATE = R"(
-    command_list.push_back(new {0}Command());
-)";
+  constexpr char const* CREATE_COMMAND_TEMPLATE = R"(    command_list.push_back(new {0}Command());)";
+
   std::ostringstream command_factory_impl;
   for (auto const& command : spec.commands)
   {
-    command_factory_impl << fmt::format(CREATE_COMMAND_TEMPLATE, command.name.camel_cased());
+    command_factory_impl << fmt::format(CREATE_COMMAND_TEMPLATE, command.name.camel_cased()) << std::endl;
   }
 
   return fmt::format(TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE,

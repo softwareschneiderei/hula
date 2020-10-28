@@ -11,13 +11,30 @@ public:
 
   float read_exposure_time() override
   {
-    return 0.05f;
+    return exposure_time_;
   }
 
   void record() override
   {
     std::cout << "Recording!" << std::endl;
   }
+
+  long square(long rhs) override
+  {
+    return rhs*rhs;
+  }
+  
+  float report() override
+  {
+    return 1234.5f;
+  }
+
+  void act(float rhs) override
+  {
+    exposure_time_ = rhs;
+  }
+private:
+  float exposure_time_ = 0.05f;
 };
 
 int main(int argc, char* argv[])
