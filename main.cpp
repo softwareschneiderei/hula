@@ -64,9 +64,9 @@ struct command
   value_type parameter_type = value_type::void_t;
 };
 
-struct device_server_spec
+struct raw_device_server_spec
 {
-  device_server_spec(toml::value const& v)
+  raw_device_server_spec(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
   , attributes(toml::find<std::vector<attribute>>(v, "attributes"))
   , commands(toml::find<std::vector<command>>(v, "commands"))
@@ -76,6 +76,26 @@ struct device_server_spec
   name name;
   std::vector<attribute> attributes;
   std::vector<command> commands;
+};
+
+struct device_server_spec : raw_device_server_spec
+{
+  device_server_spec(toml::value const& v)
+    : device_server_spec(raw_device_server_spec(v))
+  {
+  }
+
+  device_server_spec(raw_device_server_spec const& raw)
+    : raw_device_server_spec(raw)
+  {
+    base_name = fmt::format("{0}_base", name.snake_cased());
+    ds_name = fmt::format("{0}TangoAdaptor", name.camel_cased());
+    ds_class_name = fmt::format("{0}TangoClass", name.camel_cased());
+  }
+
+  std::string base_name;
+  std::string ds_name;
+  std::string ds_class_name;
 };
 
 const char* tango_type_enum(value_type v)
