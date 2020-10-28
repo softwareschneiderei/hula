@@ -5,7 +5,7 @@ class cool_camera : public cool_camera_base
 public:
   long read_binning()
   {
-    return 0;
+    return 42;
   }
 
   float read_exposure_time()

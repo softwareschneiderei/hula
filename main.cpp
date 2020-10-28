@@ -150,23 +150,14 @@ constexpr char const* TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE = R"(
 class {0}TangoClass : public Tango::DeviceClass 
 {{
 public:
-  factory_type factory_;
+  static factory_type factory_;
 
   explicit {0}TangoClass(std::string& name)
   : Tango::DeviceClass(name)
   {{
   }}
 
-  static {0}TangoClass* instance()
-  {{
-    static std::unique_ptr<{0}TangoClass> instance_;
-    if (!instance_)
-    {{
-      std::string name("{0}");
-      instance_ = std::make_unique<{0}TangoClass>(name);
-    }}
-    return instance_.get();
-  }}
+  ~{0}TangoClass() final = default;
 
   void attribute_factory(std::vector<Tango::Attr*>& attributes) override
   {{{1}  }}
@@ -192,6 +183,9 @@ public:
 	  }}
   }}
 }};
+
+// Define the static factory
+factory_type {0}TangoClass::factory_;
 )";
 
 constexpr char const* ATTRIBUTE_CLASS_TEMPLATE = R"(
@@ -265,7 +259,8 @@ std::string build_class_factory(device_server_spec const& spec)
   constexpr char const* CLASS_FACTORY_TEMPLATE = R"(
 void Tango::DServer::class_factory()
 {{
-  add_class({0}TangoClass::instance());
+  std::string name("{0}");
+  add_class(new {0}TangoClass(name));
 }}
 )";
   return fmt::format(CLASS_FACTORY_TEMPLATE, spec.name.camel_cased());
@@ -279,14 +274,15 @@ int {0}_base::register_and_run(int argc, char* argv[], factory_type factory)
 {{
   try
   {{
-		Tango::Util *tg = Tango::Util::init(argc,argv);
+    Tango::Util *tg = Tango::Util::init(argc,argv);
 
     // Register the factory
-    {1}TangoClass::instance()->factory_ = std::move(factory);
+    {1}TangoClass::factory_ = std::move(factory);
 
     // Run the server
-		tg->server_init(false);
-		tg->server_run();
+    tg->server_init(false);
+    std::cout << "Ready to accept request" << endl;
+    tg->server_run();
   }}
   catch (std::exception const& e)
   {{
