@@ -38,6 +38,12 @@ public:
   {
     exposure_time_ = rhs;
   }
+
+  std::string talk(std::string const& rhs) override
+  {
+    return "You said " + rhs;
+  }
+
 private:
   float exposure_time_ = 0.05f;
   long binning_ = 42;

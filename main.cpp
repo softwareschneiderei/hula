@@ -23,6 +23,21 @@ constexpr const char* tango_type_enum(value_type v)
   }
 }
 
+constexpr const char* tango_type(value_type v)
+{
+  switch (v)
+  {
+  case value_type::string_t:
+    return "Tango::DevString";
+  case value_type::long_t:
+    return "Tango::DevLong";
+  case value_type::float_t:
+    return "Tango::DevFloat";
+  default:
+    throw std::runtime_error("tango_type not implemented for this type");
+  }
+}
+
 constexpr const char* tango_access_enum(access_type v)
 {
   switch (v)
@@ -274,7 +289,7 @@ constexpr char const* COMMAND_VOID_TO_VOID_EXECUTE_TEMPLATE = R"(
 )";
 
 constexpr char const* COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE = R"(
-    return insert(impl->{0}());
+    return insert(to_tango<{1}>::convert(impl->{0}()));
 )";
 
 constexpr char const* COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE = R"(
@@ -287,7 +302,7 @@ constexpr char const* COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE = R"(
 constexpr char const* COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE = R"(
     {0} arg{{}};
     extract(input, arg);
-    return insert(impl->{1}(arg));
+    return insert(to_tango<{2}>::convert(impl->{1}(arg)));
 )";
 
 std::string command_execute_impl(command const& cmd)
@@ -300,18 +315,18 @@ std::string command_execute_impl(command const& cmd)
     }
     else
     {
-      return fmt::format(COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE, cmd.name.snake_cased());
+      return fmt::format(COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE, cmd.name.snake_cased(), cpp_type(cmd.return_type));
     }
   }
   else
   {
     if (cmd.return_type == value_type::void_t)
     {
-      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE, cpp_type(cmd.parameter_type), cmd.name.snake_cased());
+      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type), cmd.name.snake_cased());
     }
     else
     {
-      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE, cpp_type(cmd.parameter_type), cmd.name.snake_cased());
+      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type), cmd.name.snake_cased(), cpp_type(cmd.return_type));
     }
   }
 }
@@ -491,6 +506,25 @@ int run(int argc, char* argv[])
 #include <tango.h>
 
 using factory_type = {0}_base::factory_type;
+
+template <class T>
+struct to_tango
+{{
+  static T convert(T rhs)
+  {{
+    return rhs;
+  }}
+}};
+
+template <>
+struct to_tango<std::string>
+{{
+  static Tango::DevString convert(std::string const& rhs)
+  {{
+    return Tango::string_dup(rhs.c_str());
+  }}
+}};
+
 )";
   out << fmt::format(HULA_IMPLEMENTATION_HEADER, spec.name.snake_cased());
   out << build_adaptor_class(spec);

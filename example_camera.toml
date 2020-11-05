@@ -36,3 +36,8 @@ parameter_type = "void"
 name = "act"
 return_type = "void"
 parameter_type = "float"
+
+[[commands]]
+name = "talk"
+return_type = "string"
+parameter_type = "string"
