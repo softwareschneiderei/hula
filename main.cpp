@@ -200,7 +200,7 @@ constexpr char const* ATTRIBUTE_READ_FUNCTION_TEMPLATE = R"(
   void read(Tango::DeviceImpl* dev, Tango::Attribute& attr) override
   {{
     auto impl = static_cast<{0}*>(dev)->get();
-    read_value = impl->read_{2}();
+    read_value = to_tango<{3}>::convert(impl->read_{2}());
     attr.set_value(&read_value);
   }}
 )";
@@ -226,12 +226,12 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
 
   if (is_readable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name, cpp_type(input.type), input.name.snake_cased());
+    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name, tango_type(input.type), input.name.snake_cased(), cpp_type(input.type));
   }
 
   if (is_writable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, cpp_type(input.type), input.name.snake_cased());
+    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, tango_type(input.type), input.name.snake_cased());
   }
 
   return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), tango_access_enum(input.access), str.str());

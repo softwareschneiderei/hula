@@ -17,6 +17,11 @@ access = ["read", "write"]
 name = "exposure_time"
 type = "float"
 
+[[attributes]]
+name = "notes"
+type = "string"
+access = ["read", "write"]
+
 [[commands]]
 name = "record"
 return_type = "void"
