@@ -101,9 +101,7 @@ public:
   }}
 
   {2} load_device_properties()
-  {{
-    // TODO
-    return {2}{{}};
+  {{{3}
   }}
 private:
   factory_type factory_;
@@ -307,9 +305,45 @@ std::string command_class(std::string const& ds_name, command const& input)
   return fmt::format(COMMAND_CLASS_TEMPLATE, input.name.camel_cased(), tango_type_enum(input.parameter_type), tango_type_enum(input.return_type), execute, ds_name);
 }
 
+std::string load_device_properties_impl(device_server_spec const& spec)
+{
+  constexpr char const* IMPL_TEMPLATE = R"(
+    Tango::DbData property_data{{{1}}};
+    if (property_data.empty() || !Tango::Util::instance()->_UseDb)
+      return {{}};
+
+    // Load property data from the database
+	  get_db_device()->get_property(property_data);
+
+    // Write it to the struct
+    {0} loaded;
+    {2}
+    return loaded;
+)";
+  std::stringstream init_list;
+  std::stringstream loader_code;
+  
+  constexpr char const* LOAD_TEMPLATE = R"(
+    if (!property_data[{0}].is_empty())
+    {{
+      property_data[{0}] >> loaded.{1};
+    }}
+)";
+  
+  std::size_t index = 0;
+  for (auto const& device_property : spec.device_properties)
+  {
+    auto name = device_property.name.snake_cased();
+    init_list << fmt::format("\"{0}\",", name);
+    loader_code << fmt::format(LOAD_TEMPLATE, index++, name);
+  }
+
+  return fmt::format(IMPL_TEMPLATE, spec.device_properties_name, init_list.str(), loader_code.str());
+}
+
 std::string build_adaptor_class(device_server_spec const& spec)
 {
-  return fmt::format(TANGO_ADAPTOR_CLASS_TEMPLATE, spec.ds_name, spec.base_name, spec.device_properties_name);
+  return fmt::format(TANGO_ADAPTOR_CLASS_TEMPLATE, spec.ds_name, spec.base_name, spec.device_properties_name, load_device_properties_impl(spec));
 }
 
 std::string build_device_class(device_server_spec const& spec)
