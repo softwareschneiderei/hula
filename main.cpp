@@ -60,41 +60,54 @@ std::string parameter_list(value_type type)
   }
 }
 
+constexpr char const* DEVICE_PROPERTIES_TEMPLATE = R"(
+struct {0}
+{{
+{1}}};
+)";
+
 constexpr char const* BASE_CLASS_TEMPLATE = R"(
-class {0}_base
+class {0}
 {{
 public:
-  virtual ~{0}_base() = default;
-{1}
-  using factory_type = std::function<std::unique_ptr<{0}_base>()>;
+  using factory_type = std::function<std::unique_ptr<{0}>({1} const& properties)>;
+
+  virtual ~{0}() = default;
+{2}
   static int register_and_run(int argc, char* argv[], factory_type factory);
 }};
 )";
 
 constexpr char const* TANGO_ADAPTOR_CLASS_TEMPLATE = R"(
-class {0}TangoAdaptor : public TANGO_BASE_CLASS
+class {0} : public TANGO_BASE_CLASS
 {{
 public:
-  {0}TangoAdaptor(Tango::DeviceClass* cl, char const* name, factory_type factory)
+  {0}(Tango::DeviceClass* cl, char const* name, factory_type factory)
   : TANGO_BASE_CLASS(cl, name)
   , factory_(std::move(factory))
-  , impl_(factory_())
+  , impl_(factory_(load_device_properties()))
   {{
   }}
 
   void init_device() override
   {{
     impl_.reset();
-    impl_ = factory_();
+    impl_ = factory_(load_device_properties());
   }}
 
-  {1}_base* get()
+  {1}* get()
   {{
     return impl_.get();
   }}
+
+  {2} load_device_properties()
+  {{
+    // TODO
+    return {2}{{}};
+  }}
 private:
   factory_type factory_;
-  std::unique_ptr<{1}_base> impl_;
+  std::unique_ptr<{1}> impl_;
 }};
 )";
 
@@ -223,7 +236,7 @@ std::string build_base_class(device_server_spec const& spec)
     }
   }
 
-  return fmt::format(BASE_CLASS_TEMPLATE, spec.name.snake_cased(), str.str());
+  return fmt::format(BASE_CLASS_TEMPLATE, spec.base_name, spec.device_properties_name, str.str());
 }
 
 constexpr char const* COMMAND_CLASS_TEMPLATE = R"(
@@ -296,7 +309,7 @@ std::string command_class(std::string const& ds_name, command const& input)
 
 std::string build_adaptor_class(device_server_spec const& spec)
 {
-  return fmt::format(TANGO_ADAPTOR_CLASS_TEMPLATE, spec.name.camel_cased(), spec.name.snake_cased());
+  return fmt::format(TANGO_ADAPTOR_CLASS_TEMPLATE, spec.ds_name, spec.base_name, spec.device_properties_name);
 }
 
 std::string build_device_class(device_server_spec const& spec)
@@ -371,6 +384,16 @@ int {0}_base::register_and_run(int argc, char* argv[], factory_type factory)
   return fmt::format(RUNNER_TEMPLATE, spec.name.snake_cased(), spec.name.camel_cased());
 }
 
+std::string build_device_properties_struct(device_server_spec const& spec)
+{
+  std::ostringstream str;
+  for (auto const& device_property : spec.device_properties)
+  {
+    str << fmt::format("  {0} {1}{{}};\n", cpp_type(device_property.type), device_property.name.snake_cased());
+  }
+  return fmt::format(DEVICE_PROPERTIES_TEMPLATE, spec.device_properties_name, str.str());
+}
+
 int main(int argc, char* argv[])
 {
   if (argc < 3)
@@ -389,6 +412,7 @@ int main(int argc, char* argv[])
 )";
 
   header_file << HULA_HEADER_HEADER;
+  header_file << build_device_properties_struct(spec);
   header_file << build_base_class(spec);
 
   std::ofstream source_file(output_path / fmt::format("hula_{0}.cpp", spec.name.snake_cased()));

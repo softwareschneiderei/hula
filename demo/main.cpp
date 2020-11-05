@@ -45,5 +45,5 @@ private:
 
 int main(int argc, char* argv[])
 {
-  return cool_camera::register_and_run(argc, argv, [] { return std::make_unique<cool_camera>(); });
+  return cool_camera::register_and_run(argc, argv, [] (cool_camera_properties const& p) { return std::make_unique<cool_camera>(); });
 }

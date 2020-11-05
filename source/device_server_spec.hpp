@@ -140,11 +140,13 @@ struct device_server_spec : raw_device_server_spec
   device_server_spec(raw_device_server_spec const& raw)
   : raw_device_server_spec(raw)
   {
+    device_properties_name = fmt::format("{0}_properties", name.snake_cased());
     base_name = fmt::format("{0}_base", name.snake_cased());
     ds_name = fmt::format("{0}TangoAdaptor", name.camel_cased());
     ds_class_name = fmt::format("{0}TangoClass", name.camel_cased());
   }
 
+  std::string device_properties_name;
   std::string base_name;
   std::string ds_name;
   std::string ds_class_name;
