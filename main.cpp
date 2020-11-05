@@ -111,45 +111,50 @@ private:
 
 
 constexpr char const* TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE = R"(
-class {0}TangoClass : public Tango::DeviceClass 
+class {0} : public Tango::DeviceClass 
 {{
 public:
   static factory_type factory_;
 
-  explicit {0}TangoClass(std::string& name)
+  explicit {0}(std::string& name)
   : Tango::DeviceClass(name)
   {{
+    set_default_properties();
   }}
 
-  ~{0}TangoClass() final = default;
+  ~{0}() final = default;
 
   void attribute_factory(std::vector<Tango::Attr*>& attributes) override
-  {{{1}  }}
+  {{{2}  }}
   
   void command_factory() override
   {{
-{2}  }}
+{3}  }}
 
   void device_factory(Tango::DevVarStringArray const* devlist_ptr)
   {{
 	  for (unsigned long i=0; i<devlist_ptr->length(); i++)
 	  {{
-		  device_list.push_back(new {0}TangoAdaptor(this, (*devlist_ptr)[i], factory_));
+		  device_list.push_back(new {1}(this, (*devlist_ptr)[i], factory_));
 	  }}
 
 	  for (unsigned long i=1; i<=devlist_ptr->length(); i++)
 	  {{
-		  auto dev = static_cast<{0}TangoAdaptor*>(device_list[device_list.size()-i]);
+		  auto dev = static_cast<{1}*>(device_list[device_list.size()-i]);
 		  if ((Tango::Util::_UseDb == true) && (Tango::Util::_FileDb == false))
 			  export_device(dev);
 		  else
 			  export_device(dev, dev->get_name().c_str());
 	  }}
   }}
+  
+  void set_default_properties()
+  {{{4}
+  }}
 }};
 
 // Define the static factory
-factory_type {0}TangoClass::factory_;
+factory_type {0}::factory_;
 )";
 
 constexpr char const* ATTRIBUTE_CLASS_TEMPLATE = R"(
@@ -333,9 +338,8 @@ std::string load_device_properties_impl(device_server_spec const& spec)
   std::size_t index = 0;
   for (auto const& device_property : spec.device_properties)
   {
-    auto name = device_property.name.snake_cased();
-    init_list << fmt::format("\"{0}\",", name);
-    loader_code << fmt::format(LOAD_TEMPLATE, index++, name);
+    init_list << fmt::format("\"{0}\",", device_property.name.camel_cased());
+    loader_code << fmt::format(LOAD_TEMPLATE, index++, device_property.name.snake_cased());
   }
 
   return fmt::format(IMPL_TEMPLATE, spec.device_properties_name, init_list.str(), loader_code.str());
@@ -344,6 +348,24 @@ std::string load_device_properties_impl(device_server_spec const& spec)
 std::string build_adaptor_class(device_server_spec const& spec)
 {
   return fmt::format(TANGO_ADAPTOR_CLASS_TEMPLATE, spec.ds_name, spec.base_name, spec.device_properties_name, load_device_properties_impl(spec));
+}
+
+std::string set_default_properties_impl(device_server_spec const& spec)
+{
+  constexpr const char* DEFAULTER_IMPL = R"(
+    // {0}
+    {{
+      std::string name = "{0}";
+      std::string description;
+      add_wiz_dev_prop(name, description);
+    }})";
+
+  std::ostringstream str;
+  for (auto const& device_property : spec.device_properties)
+  {
+    str << fmt::format(DEFAULTER_IMPL, device_property.name.camel_cased());
+  }
+  return str.str();
 }
 
 std::string build_device_class(device_server_spec const& spec)
@@ -367,7 +389,7 @@ std::string build_device_class(device_server_spec const& spec)
   }
 
   return fmt::format(TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE,
-    spec.name.camel_cased(), attribute_factory_impl.str(), command_factory_impl.str());
+    spec.ds_class_name, spec.ds_name, attribute_factory_impl.str(), command_factory_impl.str(), set_default_properties_impl(spec));
 }
 
 std::string build_class_factory(device_server_spec const& spec)
