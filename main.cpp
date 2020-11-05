@@ -75,6 +75,7 @@ std::string parameter_list(value_type type)
   switch(type)
   {
   case value_type::string_t:
+    // TODO: would be nice to use std::string_view instead here, but tango 9.3.3 does not support C++17 on windows yet (due to usage of std::binary_function etc..)
     return "std::string const& rhs";
   case value_type::long_t:
     return "long rhs";
