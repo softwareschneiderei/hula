@@ -7,6 +7,7 @@ enum class value_type
   void_t,
   long_t,
   float_t,
+  string_t,
 };
 
 enum class access_type
@@ -59,6 +60,10 @@ namespace toml
       if (code == "float")
       {
         return value_type::float_t;
+      }
+      if (code == "string")
+      {
+        return value_type::string_t;
       }
       throw std::invalid_argument("Unknown type code: " + code.str);
     }

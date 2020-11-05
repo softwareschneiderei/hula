@@ -4,6 +4,10 @@ name = "cool_camera"
 name = "index"
 type = "long"
 
+[[device_properties]]
+name = "address"
+type = "string"
+
 [[attributes]]
 name = "binning"
 type = "long"
