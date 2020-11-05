@@ -1,5 +1,9 @@
 name = "cool_camera"
 
+[[device_properties]]
+name = "index"
+type = "long"
+
 [[attributes]]
 name = "binning"
 type = "long"

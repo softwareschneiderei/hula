@@ -71,9 +71,22 @@ namespace toml
   };
 }
 
+struct device_property
+{
+  device_property() = default;
+  device_property(toml::value const& v)
+  : name(toml::find<std::string>(v, "name"))
+  , type(toml::find<value_type>(v, "type"))
+  {
+  }
+
+  name name;
+  value_type type = value_type::void_t;
+};
+
 struct attribute
 {
-  attribute() {}
+  attribute() = default;
   attribute(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
   , type(toml::find<value_type>(v, "type"))
@@ -105,12 +118,14 @@ struct raw_device_server_spec
 {
   raw_device_server_spec(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
+  , device_properties(toml::find<std::vector<device_property>>(v, "device_properties"))
   , attributes(toml::find<std::vector<attribute>>(v, "attributes"))
   , commands(toml::find<std::vector<command>>(v, "commands"))
   {
   }
 
   name name;
+  std::vector<device_property> device_properties;
   std::vector<attribute> attributes;
   std::vector<command> commands;
 };
@@ -118,12 +133,12 @@ struct raw_device_server_spec
 struct device_server_spec : raw_device_server_spec
 {
   device_server_spec(toml::value const& v)
-    : device_server_spec(raw_device_server_spec(v))
+  : device_server_spec(raw_device_server_spec(v))
   {
   }
 
   device_server_spec(raw_device_server_spec const& raw)
-    : raw_device_server_spec(raw)
+  : raw_device_server_spec(raw)
   {
     base_name = fmt::format("{0}_base", name.snake_cased());
     ds_name = fmt::format("{0}TangoAdaptor", name.camel_cased());
