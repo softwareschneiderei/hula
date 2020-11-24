@@ -20,3 +20,9 @@ target_include_directories(hula
 
 target_link_libraries(hula
   PUBLIC hula_core)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+  message("Adding extra std::filesystem library for g++ 8.x series")
+  target_link_libraries(hula
+    PUBLIC stdc++fs)
+endif()
