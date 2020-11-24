@@ -7,17 +7,17 @@ uncased_name::uncased_name(std::string const& str)
   {
     if (std::isupper(x))
     {
-      parts_.push_back(std::string(1, static_cast<char>(std::tolower(x))));
+      parts_.emplace_back(1, static_cast<char>(std::tolower(x)));
       continue;
     }
     if (x == '_')
     {
-      parts_.push_back({});
+      parts_.emplace_back();
       continue;
     }
 
     if (parts_.empty())
-      parts_.push_back(std::string(1, x));
+      parts_.emplace_back(1, x);
     else
       parts_.back().push_back(x);
   }

@@ -13,7 +13,7 @@ namespace
 
 access_type toml::from<access_type>::from_toml(value const& v)
 {
-  auto parts = v.as_array();
+  auto const& parts = v.as_array();
   auto readable = contains(parts, "read");
   auto writable = contains(parts, "write");
   if (readable)

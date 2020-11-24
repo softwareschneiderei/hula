@@ -79,7 +79,7 @@ namespace toml
 struct device_property
 {
   device_property() = default;
-  device_property(toml::value const& v)
+  explicit device_property(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
   , type(toml::find<value_type>(v, "type"))
   {
@@ -92,7 +92,7 @@ struct device_property
 struct attribute
 {
   attribute() = default;
-  attribute(toml::value const& v)
+  explicit attribute(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
   , type(toml::find<value_type>(v, "type"))
   , access(toml::find_or<access_type>(v, "access", access_type::read_only))
@@ -106,8 +106,8 @@ struct attribute
 
 struct command
 {
-  command() {}
-  command(toml::value const& v)
+  command() = default;
+  explicit command(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
   , return_type(toml::find<value_type>(v, "return_type"))
   , parameter_type(toml::find<value_type>(v, "parameter_type"))
@@ -121,7 +121,7 @@ struct command
 
 struct raw_device_server_spec
 {
-  raw_device_server_spec(toml::value const& v)
+  explicit raw_device_server_spec(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
   , device_properties(toml::find<std::vector<device_property>>(v, "device_properties"))
   , attributes(toml::find<std::vector<attribute>>(v, "attributes"))
@@ -137,12 +137,12 @@ struct raw_device_server_spec
 
 struct device_server_spec : raw_device_server_spec
 {
-  device_server_spec(toml::value const& v)
+  explicit device_server_spec(toml::value const& v)
   : device_server_spec(raw_device_server_spec(v))
   {
   }
 
-  device_server_spec(raw_device_server_spec const& raw)
+  explicit device_server_spec(raw_device_server_spec const& raw)
   : raw_device_server_spec(raw)
   {
     device_properties_name = fmt::format("{0}_properties", name.snake_cased());
