@@ -1,11 +1,11 @@
 #include <vector>
 #include <string>
 
-class name
+class uncased_name
 {
 public:
-  name() = default;
-  explicit name(std::string const& str);
+  uncased_name() = default;
+  explicit uncased_name(std::string const& str);
 
   std::string snake_cased() const;
   std::string camel_cased() const;

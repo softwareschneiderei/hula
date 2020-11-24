@@ -1,6 +1,6 @@
 add_library(hula_core
-  name.cpp
-  name.hpp
+  uncased_name.cpp
+  uncased_name.hpp
   device_server_spec.cpp
   device_server_spec.hpp)
 

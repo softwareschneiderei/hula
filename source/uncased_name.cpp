@@ -1,7 +1,7 @@
-#include "name.hpp"
+#include "uncased_name.hpp"
 #include <sstream>
 
-name::name(std::string const& str)
+uncased_name::uncased_name(std::string const& str)
 {
   for (char x : str)
   {
@@ -23,7 +23,7 @@ name::name(std::string const& str)
   }
 }
 
-std::string name::snake_cased() const
+std::string uncased_name::snake_cased() const
 {
   if (parts_.empty())
     return "";
@@ -38,7 +38,7 @@ std::string name::snake_cased() const
   return str.str();
 }
 
-std::string name::camel_cased() const
+std::string uncased_name::camel_cased() const
 {
   if (parts_.empty())
     return "";
@@ -56,7 +56,7 @@ std::string name::camel_cased() const
   return str.str();
 }
 
-std::string name::dromedary_cased() const
+std::string uncased_name::dromedary_cased() const
 {
   if (parts_.empty())
     return "";

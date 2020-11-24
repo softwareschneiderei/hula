@@ -1,6 +1,6 @@
 #include <toml11/toml.hpp>
 #include <fmt/format.h>
-#include "name.hpp"
+#include "uncased_name.hpp"
 
 enum class value_type
 {
@@ -85,7 +85,7 @@ struct device_property
   {
   }
 
-  name name;
+  uncased_name name;
   value_type type = value_type::void_t;
 };
 
@@ -99,7 +99,7 @@ struct attribute
   {
   }
 
-  name name;
+  uncased_name name;
   value_type type = value_type::void_t;
   access_type access = access_type::read_only;
 };
@@ -114,7 +114,7 @@ struct command
   {
   }
 
-  name name;
+  uncased_name name;
   value_type return_type = value_type::void_t;
   value_type parameter_type = value_type::void_t;
 };
@@ -129,7 +129,7 @@ struct raw_device_server_spec
   {
   }
 
-  name name;
+  uncased_name name;
   std::vector<device_property> device_properties;
   std::vector<attribute> attributes;
   std::vector<command> commands;

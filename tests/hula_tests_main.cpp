@@ -1,10 +1,10 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
-#include "name.hpp"
+#include "uncased_name.hpp"
 
 TEST_CASE("snake_case names can be parsed")
 {
-  name x("this_was_snake_case");
+  uncased_name x("this_was_snake_case");
 
   SECTION("and output as snake_case")
   {
@@ -19,7 +19,7 @@ TEST_CASE("snake_case names can be parsed")
 
 TEST_CASE("CamelCase names can be parsed")
 {
-  name x("UsedToBeCamelCase");
+  uncased_name x("UsedToBeCamelCase");
 
   SECTION("and output as snake_case")
   {
