@@ -114,14 +114,21 @@ public:
   {0}(Tango::DeviceClass* cl, char const* name, factory_type factory)
   : TANGO_BASE_CLASS(cl, name)
   , factory_(std::move(factory))
-  , impl_(factory_(load_device_properties()))
   {{
+    {0}::init_device();
   }}
 
   void init_device() override
   {{
-    impl_.reset();
-    impl_ = factory_(load_device_properties());
+    try
+    {{
+      impl_.reset();
+      impl_ = factory_(load_device_properties());
+    }}
+    catch(...)
+    {{
+      convert_exception();
+    }}
   }}
 
   {1}* get()
