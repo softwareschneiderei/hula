@@ -1,8 +1,10 @@
 add_library(hula_core
-  uncased_name.cpp
-  uncased_name.hpp
-  device_server_spec.cpp
-  device_server_spec.hpp)
+  "uncased_name.cpp"
+  "uncased_name.hpp"
+  "device_server_spec.cpp"
+  "device_server_spec.hpp"
+  "types.hpp"
+  "types.cpp")
 
 target_include_directories(hula_core
   INTERFACE .)

@@ -1,14 +1,7 @@
 #include <toml11/toml.hpp>
 #include <fmt/format.h>
 #include "uncased_name.hpp"
-
-enum class value_type
-{
-  void_t,
-  long_t,
-  float_t,
-  string_t,
-};
+#include "types.hpp"
 
 enum class access_type
 {
@@ -48,24 +41,8 @@ namespace toml
   {
     static value_type from_toml(value const& v)
     {
-      auto code = v.as_string();
-      if (code == "void")
-      {
-        return value_type::void_t;
-      }
-      if (code == "long")
-      {
-        return value_type::long_t;
-      }
-      if (code == "float")
-      {
-        return value_type::float_t;
-      }
-      if (code == "string")
-      {
-        return value_type::string_t;
-      }
-      throw std::invalid_argument("Unknown type code: " + code.str);
+      auto const& code = v.as_string();
+      return from_input_type(code);
     }
   };
 

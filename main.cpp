@@ -2,41 +2,7 @@
 #include <iostream>
 #include <filesystem>
 #include "device_server_spec.hpp"
-
-  // See https://tango-controls.readthedocs.io/en/latest/development/device-api/device-server-writing.html?exchanging-data-between-client-and-server#exchanging-data-between-client-and-server
-  // For the mapping of tango types to c++ types
-
-constexpr const char* tango_type_enum(value_type v)
-{
-  switch (v)
-  {
-  case value_type::string_t:
-    return "Tango::DEV_STRING";
-  case value_type::long_t:
-    return "Tango::DEV_LONG";
-  case value_type::float_t:
-    return "Tango::DEV_FLOAT";
-  case value_type::void_t:
-    return "Tango::DEV_VOID";
-  default:
-    throw std::runtime_error("tango_type_enum not implemented for this type");
-  }
-}
-
-constexpr const char* tango_type(value_type v)
-{
-  switch (v)
-  {
-  case value_type::string_t:
-    return "Tango::DevString";
-  case value_type::long_t:
-    return "Tango::DevLong";
-  case value_type::float_t:
-    return "Tango::DevFloat";
-  default:
-    throw std::runtime_error("tango_type not implemented for this type");
-  }
-}
+#include "types.hpp"
 
 constexpr const char* tango_access_enum(access_type v)
 {
@@ -49,42 +15,6 @@ constexpr const char* tango_access_enum(access_type v)
     return "Tango::WRITE";
   case access_type::read_write:
     return "Tango::READ_WRITE";
-  }
-  
-}
-
-const char* cpp_type(value_type v)
-{
-  switch (v)
-  {
-  case value_type::string_t:
-    return "std::string";
-  case value_type::long_t:
-    return "long";
-  case value_type::float_t:
-    return "float";
-  case value_type::void_t:
-    return "void";
-  default:
-    throw std::runtime_error("cpp_type not implemented for this type");
-  }
-}
-
-std::string parameter_list(value_type type)
-{
-  switch(type)
-  {
-  case value_type::string_t:
-    // TODO: would be nice to use std::string_view instead here, but tango 9.3.3 does not support C++17 on windows yet (due to usage of std::binary_function etc..)
-    return "std::string const& rhs";
-  case value_type::long_t:
-    return "long rhs";
-  case value_type::float_t:
-    return "float rhs";
-  case value_type::void_t:
-    return "";
-  default:
-    throw std::runtime_error("parameter_list not implemented for this type");
   }
 }
 
@@ -249,7 +179,8 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
 
   if (is_readable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name, tango_type(input.type), input.name.snake_cased(), cpp_type(input.type));
+    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name,
+      tango_type(input.type), input.name.snake_cased(), cpp_type(input.type));
   }
 
   if (is_writable(input.access))
@@ -275,7 +206,7 @@ std::string build_base_class(device_server_spec const& spec)
       }
       if (is_writable(each.access))
       {
-        str << fmt::format("  virtual void write_{0}({1}) = 0;\n", each.name.snake_cased(), parameter_list(each.type));
+        str << fmt::format("  virtual void write_{0}({1}) = 0;\n", each.name.snake_cased(), cpp_parameter_list(each.type));
       }
     }
   }
@@ -285,7 +216,7 @@ std::string build_base_class(device_server_spec const& spec)
     str << "\n  // commands\n";
     for (auto const& each : spec.commands)
     {
-      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type), each.name.snake_cased(), parameter_list(each.parameter_type));
+      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type), each.name.snake_cased(), cpp_parameter_list(each.parameter_type));
     }
   }
 
