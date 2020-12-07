@@ -16,6 +16,7 @@ constexpr value_type_info mapping[] = {
   {value_type::double_t, "Tango::DEV_DOUBLE", "Tango::DevDouble", "double", "double rhs", "double" },
   // TODO: would be nice to use std::string_view instead here, but tango 9.3.3 does not support C++17 on windows yet (due to usage of std::binary_function etc..)
   {value_type::string_t, "Tango::DEV_STRING", "Tango::DevString", "std::string", "std::string const& rhs", "string" },
+  {value_type::image_t, "Tango::DEV_ENCODED", "Tango::DevEncoded", "image", "image const& rhs", "image" }
 };
 
 }
