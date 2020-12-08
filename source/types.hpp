@@ -9,6 +9,8 @@ enum class value_type
   float_t,
   double_t,
   string_t,
+  image8_t,
+  image16_t,
 };
 
 struct value_type_info
