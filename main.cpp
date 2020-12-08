@@ -141,7 +141,7 @@ constexpr char const* ATTRIBUTE_READ_FUNCTION_TEMPLATE = R"(
     auto impl = static_cast<{0}*>(dev)->get();
     try
     {{
-      read_value = to_tango<{3}>::convert(impl->read_{2}());
+      to_tango<{3}>::assign(read_value, impl->read_{2}());
     }}
     catch(...)
     {{
@@ -479,9 +479,10 @@ int run(int argc, char* argv[])
 #include <cstdint>
 #include <vector>
 
+template <typename element_type>
 struct image
 {
-  std::vector<std::uint16_t> data;
+  std::vector<element_type> data;
   std::size_t width = 0;
   std::size_t height = 0;
 };
@@ -508,6 +509,10 @@ struct to_tango
   {{
     return rhs;
   }}
+  static void assign(T& lhs, T rhs)
+  {{
+    lhs = rhs;
+  }}
 }};
 
 template <>
@@ -516,6 +521,29 @@ struct to_tango<std::string>
   static Tango::DevString convert(std::string const& rhs)
   {{
     return Tango::string_dup(rhs.c_str());
+  }}
+
+  static void assign(Tango::DevString& lhs, std::string const& rhs)
+  {{
+    lhs = Tango::string_dup(rhs.c_str());
+  }}
+}};
+
+template <>
+struct to_tango<image<std::uint8_t>>
+{{
+  static void assign(Tango::EncodedAttribute& lhs, image<std::uint8_t>& rhs)
+  {{
+    lhs.encode_gray8(rhs.data.data(), rhs.width, rhs.height);
+  }}
+}};
+
+template <>
+struct to_tango<image<std::uint16_t>>
+{{
+  static void assign(Tango::EncodedAttribute& lhs, image<std::uint16_t>& rhs)
+  {{
+    lhs.encode_gray16(rhs.data.data(), rhs.width, rhs.height);
   }}
 }};
 

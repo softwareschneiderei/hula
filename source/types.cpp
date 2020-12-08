@@ -8,7 +8,7 @@ namespace {
 // See https://tango-controls.readthedocs.io/en/latest/development/device-api/device-server-writing.html?exchanging-data-between-client-and-server#exchanging-data-between-client-and-server
 // For the mapping of tango types to c++ types
 constexpr value_type_info mapping[] = {
-  // enum, tango-enum, tango-type, cpp-member-type, cpp-parameter-list, toml-type
+  // enum, tango-enum, tango-type, cpp-return-type, cpp-parameter-list, toml-type
   {value_type::void_t, "Tango::DEV_VOID", nullptr, "void", "", "void"},
   {value_type::bool_t, "Tango::DEV_BOOLEAN", "Tango::DevBoolean", "bool", "bool rhs", "bool"},
   {value_type::long_t, "Tango::DEV_LONG", "Tango::DevLong", "long", "long rhs", "long"},
@@ -16,7 +16,8 @@ constexpr value_type_info mapping[] = {
   {value_type::double_t, "Tango::DEV_DOUBLE", "Tango::DevDouble", "double", "double rhs", "double" },
   // TODO: would be nice to use std::string_view instead here, but tango 9.3.3 does not support C++17 on windows yet (due to usage of std::binary_function etc..)
   {value_type::string_t, "Tango::DEV_STRING", "Tango::DevString", "std::string", "std::string const& rhs", "string" },
-  {value_type::image_t, "Tango::DEV_ENCODED", "Tango::DevEncoded", "image", "image const& rhs", "image" }
+  {value_type::image8_t, "Tango::DEV_ENCODED", "Tango::EncodedAttribute", "image<std::uint8_t>", "image<std::uint8_t> const& rhs", "image/8" },
+  {value_type::image16_t, "Tango::DEV_ENCODED", "Tango::EncodedAttribute", "image<std::uint16_t>", "image<std::uint16_t> const& rhs", "image/16" }
 };
 
 }
