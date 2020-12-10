@@ -380,9 +380,12 @@ std::string set_default_properties_impl(device_server_spec const& spec)
 std::string build_device_class(device_server_spec const& spec)
 {
   constexpr char const* CREATE_ATTRIBUTE_TEMPLATE = R"(
-    auto {0} = new {1}Attrib();
-    {0}->set_default_properties(Tango::UserDefaultAttrProp{{}});
-    attributes.push_back({0});
+    {{
+      auto {0} = new {1}Attrib();
+      Tango::UserDefaultAttrProp properties{{}};
+      {0}->set_default_properties(properties);
+      attributes.push_back({0});
+    }}
 )";
   std::ostringstream attribute_factory_impl;
   for (auto const& attribute : spec.attributes)
