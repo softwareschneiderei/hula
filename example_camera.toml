@@ -2,7 +2,7 @@ name = "cool_camera"
 
 [[device_properties]]
 name = "index"
-type = "long"
+type = "int32"
 
 [[device_properties]]
 name = "address"
@@ -10,7 +10,7 @@ type = "string"
 
 [[attributes]]
 name = "binning"
-type = "long"
+type = "int32"
 access = ["read", "write"]
 
 [[attributes]]
@@ -29,8 +29,8 @@ parameter_type = "void"
 
 [[commands]]
 name = "square"
-return_type = "long"
-parameter_type = "long"
+return_type = "int32"
+parameter_type = "int32"
 
 [[commands]]
 name = "report"

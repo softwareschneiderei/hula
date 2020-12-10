@@ -9,12 +9,12 @@ public:
   {
   }
 
-  long read_binning() override
+  std::int32_t read_binning() override
   {
     return binning_;
   }
 
-  void write_binning(long rhs) override
+  void write_binning(std::int32_t rhs) override
   {
     binning_ = rhs;
   }
@@ -39,7 +39,7 @@ public:
     std::cout << "Recording!" << std::endl;
   }
 
-  long square(long rhs) override
+  std::int32_t square(std::int32_t rhs) override
   {
     return rhs*rhs;
   }
@@ -61,7 +61,7 @@ public:
 
 private:
   float exposure_time_ = 0.05f;
-  long binning_ = 42;
+  std::int32_t binning_ = 42;
   std::string address_;
   std::string notes_;
 };
