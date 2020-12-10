@@ -5,7 +5,7 @@ enum class value_type
 {
   void_t,
   bool_t,
-  long_t,
+  int32_t,
   float_t,
   double_t,
   string_t,

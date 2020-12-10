@@ -11,7 +11,7 @@ constexpr value_type_info mapping[] = {
   // enum, tango-enum, tango-type, cpp-return-type, cpp-parameter-list, toml-type
   {value_type::void_t, "Tango::DEV_VOID", nullptr, "void", "", "void"},
   {value_type::bool_t, "Tango::DEV_BOOLEAN", "Tango::DevBoolean", "bool", "bool rhs", "bool"},
-  {value_type::long_t, "Tango::DEV_LONG", "Tango::DevLong", "long", "long rhs", "long"},
+  {value_type::int32_t, "Tango::DEV_LONG", "Tango::DevLong", "std::int32_t", "std::int32_t rhs", "int32"},
   {value_type::float_t, "Tango::DEV_FLOAT", "Tango::DevFloat", "float", "float rhs", "float" },
   {value_type::double_t, "Tango::DEV_DOUBLE", "Tango::DevDouble", "double", "double rhs", "double" },
   // TODO: would be nice to use std::string_view instead here, but tango 9.3.3 does not support C++17 on windows yet (due to usage of std::binary_function etc..)
