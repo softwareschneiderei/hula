@@ -340,7 +340,7 @@ std::string load_device_properties_impl(device_server_spec const& spec)
   constexpr char const* LOAD_TEMPLATE = R"(
     if (!property_data[{0}].is_empty())
     {{
-      property_data[{0}] >> loaded.{1};
+      from_tango<{2}>::load(loaded.{1}, property_data[{0}]);
     }}
 )";
   
@@ -348,7 +348,7 @@ std::string load_device_properties_impl(device_server_spec const& spec)
   for (auto const& device_property : spec.device_properties)
   {
     init_list << fmt::format("\"{0}\",", device_property.name.camel_cased());
-    loader_code << fmt::format(LOAD_TEMPLATE, index++, device_property.name.snake_cased());
+    loader_code << fmt::format(LOAD_TEMPLATE, index++, device_property.name.snake_cased(), cpp_type(device_property.type));
   }
 
   return fmt::format(IMPL_TEMPLATE, spec.device_properties_name, init_list.str(), loader_code.str());
@@ -518,6 +518,21 @@ struct to_tango
   }}
 }};
 
+// std::int32_t and Tango::DevLong are not the same on some OSes, e.g. Win32
+template <>
+struct to_tango<std::int32_t>
+{{
+  static_assert(sizeof(Tango::DevLong) == sizeof(std::int32_t), "Tango::DevLong must be compatible to std::int32_t");
+  static Tango::DevLong convert(std::int32_t rhs)
+  {{
+    return static_cast<Tango::DevLong>(rhs);
+  }}
+  static void assign(Tango::DevLong& lhs, std::int32_t rhs)
+  {{
+    lhs = static_cast<Tango::DevLong>(rhs);
+  }}
+}};
+
 template <>
 struct to_tango<std::string>
 {{
@@ -549,6 +564,27 @@ struct to_tango<image<std::uint16_t>>
     lhs.encode_gray16(rhs.data.data(), rhs.width, rhs.height);
   }}
 }};
+
+template <class T>
+struct from_tango
+{{
+  static void load(T& lhs, Tango::DbDatum& rhs)
+  {{
+    rhs >> lhs;
+  }}
+}};
+
+template <>
+struct from_tango<std::int32_t>
+{{
+  static void load(std::int32_t& lhs, Tango::DbDatum& rhs)
+  {{
+    Tango::DevLong tmp{{}};
+    rhs >> tmp;
+    lhs = static_cast<std::int32_t>(tmp);
+  }}
+}};
+
 
 [[noreturn]] void convert_exception()
 {{
