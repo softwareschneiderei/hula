@@ -36,6 +36,14 @@ inline bool is_writable(access_type rhs)
 
 namespace toml
 {
+  template <typename T>
+  auto find_or(toml::value const& v, std::string const& key, T default_result = {}) -> T
+  {
+    if (!v.contains(key)) return default_result;
+
+    return toml::find<T>(v, key);
+  }
+
   template<>
   struct from<value_type>
   {
@@ -100,9 +108,9 @@ struct raw_device_server_spec
 {
   explicit raw_device_server_spec(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
-  , device_properties(toml::find<std::vector<device_property>>(v, "device_properties"))
-  , attributes(toml::find<std::vector<attribute>>(v, "attributes"))
-  , commands(toml::find<std::vector<command>>(v, "commands"))
+  , device_properties(toml::find_or<std::vector<device_property>>(v, "device_properties"))
+  , attributes(toml::find_or<std::vector<attribute>>(v, "attributes"))
+  , commands(toml::find_or<std::vector<command>>(v, "commands"))
   {
   }
 
