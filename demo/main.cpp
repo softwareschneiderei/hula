@@ -59,6 +59,11 @@ public:
     return "You said " + rhs + " @ " + address_;
   }
 
+  operating_state_result operating_state() override
+  {
+    return {device_state::on, "Powered on!"};
+  }
+
 private:
   float exposure_time_ = 0.05f;
   std::int32_t binning_ = 42;
