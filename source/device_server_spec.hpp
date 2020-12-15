@@ -36,12 +36,12 @@ inline bool is_writable(access_type rhs)
 
 namespace toml
 {
-  template <typename EntryType>
-  auto find_or(toml::value const& v, std::string const& key, EntryType default_result = {}) -> EntryType
+  template <typename T>
+  auto find_or(toml::value const& v, std::string const& key, T default_result = {}) -> T
   {
     if (!v.contains(key)) return default_result;
 
-    return toml::find<EntryType>(v, key);
+    return toml::find<T>(v, key);
   }
 
   template<>
