@@ -37,11 +37,11 @@ inline bool is_writable(access_type rhs)
 namespace toml
 {
   template <typename EntryType>
-  auto entriesForKey(toml::value const& v, std::string const& key) -> std::vector<EntryType>
+  auto find_or(toml::value const& v, std::string const& key, EntryType default_result = {}) -> EntryType
   {
-    if (!v.contains(key)) return std::vector<EntryType>{};
+    if (!v.contains(key)) return default_result;
 
-    return toml::find<std::vector<EntryType>>(v, key);
+    return toml::find<EntryType>(v, key);
   }
 
   template<>
@@ -108,9 +108,9 @@ struct raw_device_server_spec
 {
   explicit raw_device_server_spec(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
-  , device_properties(toml::entriesForKey<device_property>(v, "device_properties"))
-  , attributes(toml::entriesForKey<attribute>(v, "attributes"))
-  , commands(toml::entriesForKey<command>(v, "commands"))
+  , device_properties(toml::find_or<std::vector<device_property>>(v, "device_properties"))
+  , attributes(toml::find_or<std::vector<attribute>>(v, "attributes"))
+  , commands(toml::find_or<std::vector<command>>(v, "commands"))
   {
   }
 
