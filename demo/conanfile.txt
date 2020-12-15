@@ -1,0 +1,5 @@
+[requires]
+cpptango/9.3.3@softwareschneiderei/stable
+
+[generators]
+cmake
