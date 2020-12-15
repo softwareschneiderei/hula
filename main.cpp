@@ -592,7 +592,7 @@ struct from_tango<std::int32_t>
   {{
     throw;
   }}
-  catch (Tango::DevFailed const& e)
+  catch (Tango::DevFailed const&)
   {{
     throw;
   }}
