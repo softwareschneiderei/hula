@@ -32,8 +32,16 @@ public:
 
   virtual ~{0}() = default;
 {2}
+  // special
+  virtual operating_state_result operating_state();
+
   static int register_and_run(int argc, char* argv[], factory_type factory);
 }};
+
+inline operating_state_result {0}::operating_state()
+{{
+  return {{device_state::unknown, "Unknown"}};
+}}
 )";
 
 // TODO: need to add exception handling/conversion to the factory_ calls
@@ -69,6 +77,28 @@ public:
   {2} load_device_properties()
   {{{3}
   }}
+
+  Tango::DevState dev_state() override
+  {{
+    store_operating_state(get()->operating_state());
+	  return get_state();
+  }}
+
+  Tango::ConstDevString dev_status() override
+  {{
+    store_operating_state(get()->operating_state());
+    return Tango::DeviceImpl::dev_status();
+  }}
+
+  void store_operating_state(operating_state_result const& current)
+  {{
+    auto state = convert_state(current.state);
+    set_state(state);
+    set_status(current.status);
+	  if (state!=Tango::ALARM)
+		  Tango::DeviceImpl::dev_state();
+  }}
+
 private:
   factory_type factory_;
   std::unique_ptr<{1}> impl_;
@@ -490,6 +520,29 @@ struct image
   std::size_t height = 0;
 };
 
+enum class device_state
+{
+  on,
+  off,
+  close,
+  open,
+  insert,
+  extract,
+  moving,
+  standby,
+  fault,
+  init,
+  running,
+  alarm,
+  disable,
+  unknown
+};
+
+struct operating_state_result
+{
+  device_state state = device_state::unknown;
+  std::string status;
+};
 )";
 
   header_file << HULA_HEADER_HEADER;
@@ -604,6 +657,26 @@ struct from_tango<std::int32_t>
   {{
     Tango::Except::throw_exception("UNKNOWN_EXCEPTION", "Unknown exception", "convert_exception()");
   }}
+}}
+
+inline Tango::DevState convert_state(device_state s)
+{{
+  // Make sure the hula definitions match up
+  static_assert(static_cast<Tango::DevState>(device_state::on)==Tango::ON, "ON does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::off)==Tango::OFF, "OFF does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::close)==Tango::CLOSE, "CLOSE does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::open)==Tango::OPEN, "OPEN does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::insert)==Tango::INSERT, "INSERT does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::extract)==Tango::EXTRACT, "EXTRACT does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::moving)==Tango::MOVING, "MOVING does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::standby)==Tango::STANDBY, "STANDBY does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::fault)==Tango::FAULT, "FAULT does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::init)==Tango::INIT, "INIT does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::running)==Tango::RUNNING, "RUNNING does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::alarm)==Tango::ALARM, "ALARM does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::disable)==Tango::DISABLE, "DISABLE does not match up");
+  static_assert(static_cast<Tango::DevState>(device_state::unknown)==Tango::UNKNOWN, "UNKNOWN does not match up");
+  return static_cast<Tango::DevState>(s);
 }}
 
 }} // namespace
