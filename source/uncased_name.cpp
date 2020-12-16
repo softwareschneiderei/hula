@@ -1,25 +1,49 @@
 #include "uncased_name.hpp"
 #include <sstream>
 
+bool last_was_upper(std::string const& str, std::size_t pos) {
+  auto last_pos = pos - 1;
+  if (last_pos >= 0 && last_pos < str.size()) {
+    return std::isupper(str[last_pos]);
+  } else {
+    return false;
+  }
+}
+
+bool next_is_lower(std::string const& str, std::size_t pos) {
+  auto next_pos = pos + 1;
+  if (next_pos >= 0 && next_pos < str.size()) {
+    return std::islower(str[next_pos]);
+  } else {
+    return false;
+  }
+}
+
 uncased_name::uncased_name(std::string const& str)
 {
-  for (char x : str)
+  for (std::size_t i = 0; i < str.size(); ++i)
   {
-    if (std::isupper(x))
+    if (std::isupper(str[i]) && (!last_was_upper(str,i) || next_is_lower(str,i)))
     {
-      parts_.emplace_back(1, static_cast<char>(std::tolower(x)));
+      parts_.emplace_back(1, static_cast<char>(std::tolower(str[i])));
       continue;
     }
-    if (x == '_')
+    if (std::isupper(str[i]) && last_was_upper(str,i))
+    {
+      parts_.back().push_back(static_cast<char>(std::tolower(str[i])));
+      continue;
+    }
+    if (str[i] == '_')
     {
       parts_.emplace_back();
       continue;
     }
 
-    if (parts_.empty())
-      parts_.emplace_back(1, x);
-    else
-      parts_.back().push_back(x);
+    if (parts_.empty()) {
+      parts_.emplace_back(1, str[i]);
+    } else {
+      parts_.back().push_back(str[i]);
+    }
   }
 }
 
