@@ -17,6 +17,16 @@ TEST_CASE("snake_case names can be parsed")
   }
 }
 
+TEST_CASE("All_caps_abbreviation_is_parsed_as_a_single_word")
+{
+    REQUIRE(uncased_name("ABBR").snake_cased() == "abbr");
+}
+
+TEST_CASE("All_caps_abbreviation_ends_at_CamelCase_word_boundary")
+{
+    REQUIRE(uncased_name("ABBRe").snake_cased() == "abb_re");
+}
+
 TEST_CASE("CamelCase names can be parsed")
 {
   uncased_name x("UsedToBeCamelCase");
