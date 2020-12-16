@@ -17,6 +17,21 @@ TEST_CASE("snake_case names can be parsed")
   }
 }
 
+TEST_CASE("All_caps_abbreviation_is_parsed_as_a_single_word")
+{
+    REQUIRE(uncased_name("ABBR").snake_cased() == "abbr");
+}
+
+TEST_CASE("All_caps_abbreviation_ends_at_CamelCase_word_boundary")
+{
+    REQUIRE(uncased_name("ABBRe").snake_cased() == "abb_re");
+}
+
+TEST_CASE("Double_underscore_yields_the_same_as_single_underscore")
+{
+    REQUIRE(uncased_name("a__b").snake_cased() == "a_b");
+}
+
 TEST_CASE("CamelCase names can be parsed")
 {
   uncased_name x("UsedToBeCamelCase");
