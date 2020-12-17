@@ -44,7 +44,6 @@ inline operating_state_result {0}::operating_state()
 }}
 )";
 
-// TODO: need to add exception handling/conversion to the factory_ calls
 constexpr char const* TANGO_ADAPTOR_CLASS_TEMPLATE = R"(
 class {0} : public TANGO_BASE_CLASS
 {{
