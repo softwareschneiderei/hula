@@ -112,6 +112,12 @@ class {0} : public Tango::DeviceClass
 public:
   static factory_type factory_;
 
+  static Tango::DeviceClass* create()
+  {{
+    std::string name("{5}");
+    return new {0}(name);
+  }}
+
   explicit {0}(std::string& name)
   : Tango::DeviceClass(name)
   {{
@@ -431,7 +437,7 @@ std::string build_device_class(device_server_spec const& spec)
   }
 
   return fmt::format(TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE,
-    spec.ds_class_name, spec.ds_name, attribute_factory_impl.str(), command_factory_impl.str(), set_default_properties_impl(spec));
+    spec.ds_class_name, spec.ds_name, attribute_factory_impl.str(), command_factory_impl.str(), set_default_properties_impl(spec), spec.name.camel_cased());
 }
 
 std::string build_class_factory(device_server_spec const& spec)
@@ -439,11 +445,10 @@ std::string build_class_factory(device_server_spec const& spec)
   constexpr char const* CLASS_FACTORY_TEMPLATE = R"(
 void Tango::DServer::class_factory()
 {{
-  std::string name("{0}");
-  add_class(new {0}TangoClass(name));
+  add_class({0}::create());
 }}
 )";
-  return fmt::format(CLASS_FACTORY_TEMPLATE, spec.name.camel_cased());
+  return fmt::format(CLASS_FACTORY_TEMPLATE, spec.ds_class_name);
 }
 
 std::string build_runner(device_server_spec const& spec)
