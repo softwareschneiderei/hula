@@ -32,6 +32,11 @@ TEST_CASE("Numbers_are_allowed_in_names")
   REQUIRE(uncased_name("Test4Numbers").snake_cased() == "test_4_numbers");
 }
 
+TEST_CASE("Numbers_are_always_separate")
+{
+  REQUIRE(uncased_name("Test4numbers").snake_cased() == "test_4_numbers");
+}
+
 TEST_CASE("Double_underscore_yields_the_same_as_single_underscore")
 {
     REQUIRE(uncased_name("a__b").snake_cased() == "a_b");
