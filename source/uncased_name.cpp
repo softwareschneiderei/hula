@@ -3,12 +3,21 @@
 
 namespace {
 
-bool last_was_upper(std::string const& str, std::size_t i) {
-  return (i > 0) && std::isupper(str[i-1]);
+bool is_separator(char const c)
+{
+  return std::isupper(c) || std::isdigit(c);
+}
+
+bool last_was_separator(std::string const& str, std::size_t i) {
+  return (i > 0) && is_separator(str[i-1]);
 }
 
 bool last_was_underscore(std::string const& str, std::size_t i) {
   return (i > 0) && str[i-1] == '_';
+}
+
+bool last_was_digit(std::string const& str, std::size_t i) {
+  return (i > 0) && std::isdigit(str[i-1]);
 }
 
 bool next_is_lower(std::string const& str, std::size_t i) {
@@ -30,12 +39,13 @@ bool part_starts_at(std::string const& str, std::size_t i)
   {
     return true;
   }
-  // ABc -> A|Bc, ABCd -> AB|Cd, aB -> a|B
-  if (!std::isupper(str[i]))
+  if (!is_separator(str[i]))
   {
-    return false;
+    // start a new part after a (string of) number(s)
+    return last_was_digit(str,i);
   }
-  return !last_was_upper(str, i) || next_is_lower(str, i);
+  // ABc -> A|Bc, ABCd -> AB|Cd, aB -> a|B
+  return !last_was_separator(str, i) || next_is_lower(str, i);
 }
 
 bool part_continues_at(std::string const& str, std::size_t i)
@@ -44,7 +54,7 @@ bool part_continues_at(std::string const& str, std::size_t i)
   {
     return true;
   }
-  return last_was_upper(str, i) && std::isupper(str[i]) && !next_is_lower(str, i);
+  return last_was_separator(str, i) && is_separator(str[i]) && !next_is_lower(str, i);
 }
 
 } // namespace

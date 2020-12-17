@@ -27,6 +27,26 @@ TEST_CASE("All_caps_abbreviation_ends_at_CamelCase_word_boundary")
     REQUIRE(uncased_name("ABBRe").snake_cased() == "abb_re");
 }
 
+TEST_CASE("Numbers_are_allowed_in_names")
+{
+  REQUIRE(uncased_name("Test4Numbers").snake_cased() == "test_4_numbers");
+}
+
+TEST_CASE("Numbers_are_always_separate")
+{
+  REQUIRE(uncased_name("Test4numbers").snake_cased() == "test_4_numbers");
+}
+
+TEST_CASE("Numbers_with_more_than_one_digit_are_kept_together")
+{
+  REQUIRE(uncased_name("Test1234Numbers").snake_cased() == "test_1234_numbers");
+}
+
+TEST_CASE("Names_with_abbreviations_and_numbers_are_no_problem")
+{
+  REQUIRE(uncased_name("SHA256").snake_cased() == "sha256");
+}
+
 TEST_CASE("Double_underscore_yields_the_same_as_single_underscore")
 {
     REQUIRE(uncased_name("a__b").snake_cased() == "a_b");
