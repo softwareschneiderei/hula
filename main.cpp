@@ -1,6 +1,7 @@
 #include <fmt/format.h>
 #include <iostream>
 #include <filesystem>
+#include <unordered_set>
 #include "device_server_spec.hpp"
 #include "types.hpp"
 
@@ -10,7 +11,8 @@ std::string join_applied(std::vector<T> const& input, std::string const& separat
   if (input.empty())
     return {};
 
-  std::ostringstream str(transform(input.front()));
+  std::ostringstream str;
+  str << transform(input.front());
   for (std::size_t i = 1, ie = input.size(); i != ie; ++i)
     str << separator << transform(input[i]);
   return str.str();
@@ -744,6 +746,20 @@ constexpr char const* HULA_IMPLEMENTATION_PUBLIC_SECTION_START = R"(
 } // namespace
 )";
 
+void check_names(std::vector<device_server_spec> const& spec_list)
+{
+  std::unordered_set<std::string> seen_names;
+  for (auto const& spec : spec_list)
+  {
+    auto name = spec.name.snake_cased();
+    auto [_, inserted] = seen_names.insert(name);
+    if (!inserted)
+    {
+      throw std::invalid_argument(fmt::format("Duplicated name: \"{0}\"", name));
+    }
+  }
+}
+
 int run(int argc, char* argv[])
 {
   if (argc < 3)
@@ -764,11 +780,12 @@ int run(int argc, char* argv[])
   std::vector<device_server_spec> spec_list;
   for (int i = 0; i < N; ++i)
   {
-    auto input = toml::parse(argv[1]);
+    auto input = toml::parse(argv[i+1]);
     auto spec = toml::get<device_server_spec>(input);
     spec_list.push_back(spec);
   }
-  
+
+  check_names(spec_list);
 
   std::ofstream header_file(output_path / "hula_generated.hpp");
   std::ofstream source_file(output_path / "hula_generated.cpp");
