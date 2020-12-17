@@ -16,8 +16,8 @@ bool last_was_underscore(std::string const& str, std::size_t i) {
   return (i > 0) && str[i-1] == '_';
 }
 
-bool next_is_separator(std::string const& str, std::size_t i) {
-  return !((i+1 < str.size()) && std::islower(str[i+1]));
+bool next_is_lower(std::string const& str, std::size_t i) {
+  return (i+1 < str.size()) && std::islower(str[i+1]);
 }
 
 bool part_starts_at(std::string const& str, std::size_t i)
@@ -40,7 +40,7 @@ bool part_starts_at(std::string const& str, std::size_t i)
   {
     return false;
   }
-  return !last_was_separator(str, i) || !next_is_separator(str, i);
+  return !last_was_separator(str, i) || next_is_lower(str, i);
 }
 
 bool part_continues_at(std::string const& str, std::size_t i)
@@ -49,7 +49,7 @@ bool part_continues_at(std::string const& str, std::size_t i)
   {
     return true;
   }
-  return last_was_separator(str, i) && is_separator(str[i]) && next_is_separator(str, i);
+  return last_was_separator(str, i) && is_separator(str[i]) && !next_is_lower(str, i);
 }
 
 } // namespace
