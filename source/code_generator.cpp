@@ -55,10 +55,11 @@ inline operating_state_result {0}::operating_state()
 )";
 
 constexpr char const* TANGO_ADAPTOR_CLASS_TEMPLATE = R"(
-class {0} : public TANGO_BASE_CLASS
+class {0} final : public TANGO_BASE_CLASS
 {{
 public:
   using factory_type = {1}::factory_type;
+
   {0}(Tango::DeviceClass* cl, char const* name, factory_type factory)
   : TANGO_BASE_CLASS(cl, name)
   , factory_(std::move(factory))
@@ -66,7 +67,7 @@ public:
     {0}::init_device();
   }}
 
-  void init_device() override
+  void init_device() final
   {{
     try
     {{
@@ -79,24 +80,24 @@ public:
     }}
   }}
 
-  {1}* get()
+  static {1}* get(Tango::DeviceImpl* device)
   {{
-    return impl_.get();
+    return static_cast<{0}*>(device)->impl_.get();
   }}
 
   {2} load_device_properties()
   {{{3}
   }}
 
-  Tango::DevState dev_state() override
+  Tango::DevState dev_state() final
   {{
-    store_operating_state(get()->operating_state());
+    store_operating_state(impl_->operating_state());
 	  return get_state();
   }}
 
-  Tango::ConstDevString dev_status() override
+  Tango::ConstDevString dev_status() final
   {{
-    store_operating_state(get()->operating_state());
+    store_operating_state(impl_->operating_state());
     return Tango::DeviceImpl::dev_status();
   }}
 
@@ -137,16 +138,16 @@ public:
 
   ~{0}() final = default;
 
-  void attribute_factory(std::vector<Tango::Attr*>& attributes) override
+  void attribute_factory(std::vector<Tango::Attr*>& attributes) final
   {{
     using namespace {6};
     {2}
   }}
   
-  void command_factory() override
+  void command_factory() final
   {{
     using namespace {6};
-   {3}
+    {3}
   }}
 
   void device_factory(Tango::DevVarStringArray const* devlist_ptr)
@@ -158,7 +159,7 @@ public:
 
 	  for (unsigned long i=1; i<=devlist_ptr->length(); i++)
 	  {{
-		  auto dev = static_cast<{1}*>(device_list[device_list.size()-i]);
+		  auto dev = device_list[device_list.size()-i];
 		  if ((Tango::Util::_UseDb == true) && (Tango::Util::_FileDb == false))
 			  export_device(dev);
 		  else
@@ -181,16 +182,16 @@ class {0}Attrib : public Tango::Attr
 public:
   {0}Attrib()
   : Tango::Attr("{1}", {2}, {3}) {{}}
-  ~{0}Attrib() override = default;
+  ~{0}Attrib() final = default;
 {4}
 }};
 )";
 
 constexpr char const* ATTRIBUTE_READ_FUNCTION_TEMPLATE = R"(
   {1} read_value{{}};
-  void read(Tango::DeviceImpl* dev, Tango::Attribute& attr) override
+  void read(Tango::DeviceImpl* dev, Tango::Attribute& attr) final
   {{
-    auto impl = static_cast<{0}*>(dev)->get();
+    auto impl = {0}::get(dev);
     try
     {{
       to_tango<{3}>::assign(read_value, impl->read_{2}());
@@ -204,9 +205,9 @@ constexpr char const* ATTRIBUTE_READ_FUNCTION_TEMPLATE = R"(
 )";
 
 constexpr char const* ATTRIBUTE_WRITE_FUNCTION_TEMPLATE = R"(
-  void write(Tango::DeviceImpl* dev, Tango::WAttribute& attr) override
+  void write(Tango::DeviceImpl* dev, Tango::WAttribute& attr) final
   {{
-    auto impl = static_cast<{0}*>(dev)->get();
+    auto impl = {0}::get(dev);
     {1} arg{{}};
     attr.get_write_value(arg);
     try
@@ -283,9 +284,9 @@ public:
   : Tango::Command("{0}", {1}, {2}, "", "", Tango::OPERATOR)
   {{}}
 
-  CORBA::Any* execute(Tango::DeviceImpl* dev, CORBA::Any const& input) override
+  CORBA::Any* execute(Tango::DeviceImpl* dev, CORBA::Any const& input) final
   {{
-    auto impl = static_cast<{4}*>(dev)->get();{3}  }}
+    auto impl = {4}::get(dev);{3}  }}
 }};
 )";
 
