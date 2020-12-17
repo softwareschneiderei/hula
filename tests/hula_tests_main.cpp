@@ -42,6 +42,11 @@ TEST_CASE("Numbers_with_more_than_one_digit_are_kept_together")
   REQUIRE(uncased_name("Test1234Numbers").snake_cased() == "test_1234_numbers");
 }
 
+TEST_CASE("Names_with_abbreviations_and_numbers_are_no_problem")
+{
+  REQUIRE(uncased_name("SHA256").snake_cased() == "sha256");
+}
+
 TEST_CASE("Double_underscore_yields_the_same_as_single_underscore")
 {
     REQUIRE(uncased_name("a__b").snake_cased() == "a_b");

@@ -9,7 +9,7 @@ bool is_separator(char const c)
 }
 
 bool last_was_separator(std::string const& str, std::size_t i) {
-  return (i > 0) && is_separator(str[i - 1]);
+  return (i > 0) && is_separator(str[i-1]);
 }
 
 bool last_was_underscore(std::string const& str, std::size_t i) {
