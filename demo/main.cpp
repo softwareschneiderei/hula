@@ -1,10 +1,10 @@
-#include "hula_cool_camera.hpp"
+#include "hula_generated.hpp"
 #include <iostream>
 
-class cool_camera : public cool_camera_base
+class cool_camera : public hula::cool_camera_base
 {
 public:
-  cool_camera(cool_camera_properties const& p)
+  cool_camera(hula::cool_camera_properties const& p)
   : address_(p.address)
   {
   }
@@ -73,7 +73,7 @@ private:
 
 int main(int argc, char* argv[])
 {
-  return cool_camera::register_and_run(argc, argv, [] (cool_camera_properties const& p) {
+  return hula::register_and_run(argc, argv, [](hula::cool_camera_properties const& p) {
     return std::make_unique<cool_camera>(p); 
   });
 }

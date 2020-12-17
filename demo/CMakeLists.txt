@@ -8,8 +8,8 @@ include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup(TARGETS)
 
 add_executable(cool_camera
-  hula_cool_camera.cpp
-  hula_cool_camera.hpp
+  hula_generated.cpp
+  hula_generated.hpp
   main.cpp)
 
 target_link_libraries(cool_camera
