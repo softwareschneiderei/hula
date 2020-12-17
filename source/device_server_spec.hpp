@@ -1,3 +1,4 @@
+#pragma once
 #include <toml11/toml.hpp>
 #include <fmt/format.h>
 #include "uncased_name.hpp"

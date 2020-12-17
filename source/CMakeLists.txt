@@ -4,7 +4,9 @@ add_library(hula_core
   "device_server_spec.cpp"
   "device_server_spec.hpp"
   "types.hpp"
-  "types.cpp")
+  "types.cpp"
+  "code_generator.hpp"
+  "code_generator.cpp")
 
 target_include_directories(hula_core
   INTERFACE .)
