@@ -1,0 +1,35 @@
+name = "camera_stand"
+
+[[device_properties]]
+name = "address"
+type = "string"
+
+[[attributes]]
+name = "notes"
+type = "string"
+access = ["read", "write"]
+
+[[attributes]]
+name = "position_x"
+type = "double"
+access = ["read"]
+
+[[attributes]]
+name = "position_y"
+type = "double"
+access = ["read"]
+
+[[commands]]
+name = "move_x"
+return_type = "void"
+parameter_type = "double"
+
+[[commands]]
+name = "move_y"
+return_type = "void"
+parameter_type = "double"
+
+[[commands]]
+name = "act"
+return_type = "void"
+parameter_type = "void"

@@ -1,8 +1,22 @@
 #include <fmt/format.h>
 #include <iostream>
 #include <filesystem>
+#include <unordered_set>
 #include "device_server_spec.hpp"
 #include "types.hpp"
+
+template <class T, class Transform>
+std::string join_applied(std::vector<T> const& input, std::string const& separator, Transform transform)
+{
+  if (input.empty())
+    return {};
+
+  std::ostringstream str;
+  str << transform(input.front());
+  for (std::size_t i = 1, ie = input.size(); i != ie; ++i)
+    str << separator << transform(input[i]);
+  return str.str();
+}
 
 constexpr const char* tango_access_enum(access_type v)
 {
@@ -28,27 +42,28 @@ constexpr char const* BASE_CLASS_TEMPLATE = R"(
 class {0}
 {{
 public:
+  using device_state = hula::device_state;
+  using operating_state_result = hula::operating_state_result;
   using factory_type = std::function<std::unique_ptr<{0}>({1} const& properties)>;
 
   virtual ~{0}() = default;
 {2}
   // special
   virtual operating_state_result operating_state();
-
-  static int register_and_run(int argc, char* argv[], factory_type factory);
 }};
 
 inline operating_state_result {0}::operating_state()
 {{
   return {{device_state::unknown, "Unknown"}};
 }}
+
 )";
 
-// TODO: need to add exception handling/conversion to the factory_ calls
 constexpr char const* TANGO_ADAPTOR_CLASS_TEMPLATE = R"(
 class {0} : public TANGO_BASE_CLASS
 {{
 public:
+  using factory_type = {1}::factory_type;
   {0}(Tango::DeviceClass* cl, char const* name, factory_type factory)
   : TANGO_BASE_CLASS(cl, name)
   , factory_(std::move(factory))
@@ -110,7 +125,14 @@ constexpr char const* TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE = R"(
 class {0} : public Tango::DeviceClass 
 {{
 public:
+  using factory_type = {1}::factory_type;
   static factory_type factory_;
+
+  static Tango::DeviceClass* create()
+  {{
+    std::string name("{5}");
+    return new {0}(name);
+  }}
 
   explicit {0}(std::string& name)
   : Tango::DeviceClass(name)
@@ -121,11 +143,16 @@ public:
   ~{0}() final = default;
 
   void attribute_factory(std::vector<Tango::Attr*>& attributes) override
-  {{{2}  }}
+  {{
+    using namespace {6};
+    {2}
+  }}
   
   void command_factory() override
   {{
-{3}  }}
+    using namespace {6};
+   {3}
+  }}
 
   void device_factory(Tango::DevVarStringArray const* devlist_ptr)
   {{
@@ -150,7 +177,7 @@ public:
 }};
 
 // Define the static factory
-factory_type {0}::factory_;
+{0}::factory_type {0}::factory_;
 )";
 
 constexpr char const* ATTRIBUTE_CLASS_TEMPLATE = R"(
@@ -422,42 +449,60 @@ std::string build_device_class(device_server_spec const& spec)
   {
     attribute_factory_impl << fmt::format(CREATE_ATTRIBUTE_TEMPLATE, attribute.name.dromedary_cased(), attribute.name.camel_cased());
   }
-  constexpr char const* CREATE_COMMAND_TEMPLATE = R"(    command_list.push_back(new {0}Command());)";
+  constexpr char const* CREATE_COMMAND_TEMPLATE = R"(command_list.push_back(new {0}Command());)";
 
-  std::ostringstream command_factory_impl;
-  for (auto const& command : spec.commands)
+  auto command_factory_impl = join_applied(spec.commands, "\n    ", [&](command const& each)
   {
-    command_factory_impl << fmt::format(CREATE_COMMAND_TEMPLATE, command.name.camel_cased()) << std::endl;
-  }
+    return fmt::format(CREATE_COMMAND_TEMPLATE, each.name.camel_cased());
+  });
 
   return fmt::format(TANGO_ADAPTOR_DEVICE_CLASS_CLASS_TEMPLATE,
-    spec.ds_class_name, spec.ds_name, attribute_factory_impl.str(), command_factory_impl.str(), set_default_properties_impl(spec));
+    spec.ds_class_name, spec.ds_name, attribute_factory_impl.str(),
+    command_factory_impl, set_default_properties_impl(spec),
+    spec.name.camel_cased(), spec.grouping_namespace_name);
 }
 
-std::string build_class_factory(device_server_spec const& spec)
+std::string build_class_factory(std::vector<device_server_spec> const& spec_list)
 {
   constexpr char const* CLASS_FACTORY_TEMPLATE = R"(
 void Tango::DServer::class_factory()
 {{
-  std::string name("{0}");
-  add_class(new {0}TangoClass(name));
+{0}
 }}
 )";
-  return fmt::format(CLASS_FACTORY_TEMPLATE, spec.name.camel_cased());
+  auto body = join_applied(spec_list, "\n", [](device_server_spec const& spec)
+  {
+    return fmt::format("  add_class({0}::create());", spec.ds_class_name);
+  });
+  return fmt::format(CLASS_FACTORY_TEMPLATE, body);
 }
 
-std::string build_runner(device_server_spec const& spec)
+std::string build_factory_parameters(std::vector<device_server_spec> const& spec_list)
+{
+  return join_applied(spec_list, ",\n  ", [](device_server_spec const& spec)
+  {
+    return fmt::format("{0}::factory_type make_{1}", spec.base_name, spec.name.snake_cased());
+  });
+}
+
+std::string build_runner_declaration(std::vector<device_server_spec> const& spec_list)
+{
+  auto factory_parameters = build_factory_parameters(spec_list);
+  return fmt::format("int register_and_run(int argc, char* argv[],\n  {0});", factory_parameters);
+}
+
+std::string build_runner(std::vector<device_server_spec> const& spec_list)
 {
   constexpr char const* RUNNER_TEMPLATE = R"(
-
-int {0}_base::register_and_run(int argc, char* argv[], factory_type factory)
+int hula::register_and_run(int argc, char* argv[],
+  {0})
 {{
   try
   {{
     Tango::Util *tg = Tango::Util::init(argc,argv);
 
-    // Register the factory
-    {1}TangoClass::factory_ = std::move(factory);
+    // Register the factories
+    {1}
 
     // Run the server
     tg->server_init(false);
@@ -479,7 +524,12 @@ int {0}_base::register_and_run(int argc, char* argv[], factory_type factory)
 }}
 
 )";
-  return fmt::format(RUNNER_TEMPLATE, spec.name.snake_cased(), spec.name.camel_cased());
+  auto factory_parameters = build_factory_parameters(spec_list);
+  auto factory_assignments = join_applied(spec_list, "\n    ", [](device_server_spec const& spec)
+  {
+    return fmt::format("{0}::factory_ = std::move(make_{1});", spec.ds_class_name, spec.name.snake_cased());
+  });
+  return fmt::format(RUNNER_TEMPLATE, factory_parameters, factory_assignments);
 }
 
 std::string build_device_properties_struct(device_server_spec const& spec)
@@ -492,25 +542,37 @@ std::string build_device_properties_struct(device_server_spec const& spec)
   return fmt::format(DEVICE_PROPERTIES_TEMPLATE, spec.device_properties_name, str.str());
 }
 
-int run(int argc, char* argv[])
+std::string build_grouping_namespace_start(device_server_spec const& spec)
 {
-  if (argc < 3)
-    return 0;
+  constexpr char const* TEMPLATE = R"(
 
-  auto input = toml::parse(argv[1]);
-  auto spec = toml::get<device_server_spec>(input);
+// Group attributes and commands
+namespace {0} {{
+)";
 
-  std::filesystem::path output_path{argv[2]};
+    // Create a grouping namespace in the unnamed namespace for
+    // attributes and classes so they do not clash with other devices
+    return fmt::format(TEMPLATE, spec.grouping_namespace_name);
+}
 
-  std::ofstream header_file(output_path / fmt::format("hula_{0}.hpp", spec.name.snake_cased()));
-  
-  constexpr char const* HULA_HEADER_HEADER = R"(// Generated by hula. DO NOT MODIFY, CHANGES WILL BE LOST.
+std::string build_grouping_namespace_end(device_server_spec const& spec)
+{
+  constexpr char const* TEMPLATE = R"(
+}} // {0}
+
+)";
+  return fmt::format(TEMPLATE, spec.grouping_namespace_name);
+}
+
+constexpr char const* HULA_HEADER_HEADER = R"(// Generated by hula. DO NOT MODIFY, CHANGES WILL BE LOST.
 #pragma once
 #include <string>
 #include <functional>
 #include <memory>
 #include <cstdint>
 #include <vector>
+
+namespace hula {
 
 template <typename element_type>
 struct image
@@ -545,122 +607,121 @@ struct operating_state_result
 };
 )";
 
-  header_file << HULA_HEADER_HEADER;
-  header_file << build_device_properties_struct(spec);
-  header_file << build_base_class(spec);
+constexpr char const* HULA_HEADER_FOOTER = R"(
 
-  std::ofstream source_file(output_path / fmt::format("hula_{0}.cpp", spec.name.snake_cased()));
-  std::ostream& out = source_file;
-  constexpr char const* HULA_IMPLEMENTATION_HEADER = R"--(// Generated by hula. DO NOT MODIFY, CHANGES WILL BE LOST.
-#include "{0}"
+} // hula
+)";
+
+constexpr char const* HULA_IMPLEMENTATION_HEADER = R"--(// Generated by hula. DO NOT MODIFY, CHANGES WILL BE LOST.
+#include "hula_generated.hpp"
 #include <tango.h>
 
-using factory_type = {1}::factory_type;
+using namespace hula;
 
-namespace {{
+namespace {
 template <class T>
 struct to_tango
-{{
+{
   static T convert(T rhs)
-  {{
+  {
     return rhs;
-  }}
+  }
   static void assign(T& lhs, T rhs)
-  {{
+  {
     lhs = rhs;
-  }}
-}};
+  }
+};
 
 // std::int32_t and Tango::DevLong are not the same on some OSes, e.g. Win32
 template <>
 struct to_tango<std::int32_t>
-{{
+{
   static_assert(sizeof(Tango::DevLong) == sizeof(std::int32_t), "Tango::DevLong must be compatible to std::int32_t");
   static Tango::DevLong convert(std::int32_t rhs)
-  {{
+  {
     return static_cast<Tango::DevLong>(rhs);
-  }}
+  }
   static void assign(Tango::DevLong& lhs, std::int32_t rhs)
-  {{
+  {
     lhs = static_cast<Tango::DevLong>(rhs);
-  }}
-}};
+  }
+};
 
 template <>
 struct to_tango<std::string>
-{{
+{
   static Tango::DevString convert(std::string const& rhs)
-  {{
+  {
     return Tango::string_dup(rhs.c_str());
-  }}
+  }
 
   static void assign(Tango::DevString& lhs, std::string const& rhs)
-  {{
+  {
     lhs = Tango::string_dup(rhs.c_str());
-  }}
-}};
+  }
+};
 
 template <>
 struct to_tango<image<std::uint8_t>>
-{{
+{
   static void assign(Tango::EncodedAttribute& lhs, image<std::uint8_t>& rhs)
-  {{
+  {
     lhs.encode_gray8(rhs.data.data(), rhs.width, rhs.height);
-  }}
-}};
+  }
+};
 
 template <>
 struct to_tango<image<std::uint16_t>>
-{{
+{
   static void assign(Tango::EncodedAttribute& lhs, image<std::uint16_t>& rhs)
-  {{
+  {
     lhs.encode_gray16(rhs.data.data(), rhs.width, rhs.height);
-  }}
-}};
+  }
+};
 
 template <class T>
 struct from_tango
-{{
+{
   static void load(T& lhs, Tango::DbDatum& rhs)
-  {{
+  {
     rhs >> lhs;
-  }}
-}};
+  }
+};
 
 template <>
 struct from_tango<std::int32_t>
-{{
+{
   static void load(std::int32_t& lhs, Tango::DbDatum& rhs)
-  {{
-    Tango::DevLong tmp{{}};
+  {
+    Tango::DevLong tmp{};
     rhs >> tmp;
     lhs = static_cast<std::int32_t>(tmp);
-  }}
-}};
+  }
+};
 
 
 [[noreturn]] void convert_exception()
-{{
+{
   try
-  {{
+  {
     throw;
-  }}
+  }
   catch (Tango::DevFailed const&)
-  {{
+  {
     throw;
-  }}
+  }
   catch (std::exception const& e)
-  {{
+  {
     Tango::Except::throw_exception("STD_EXCEPTION", e.what(), "convert_exception()");
-  }}
+  }
   catch (...)
-  {{
+  {
     Tango::Except::throw_exception("UNKNOWN_EXCEPTION", "Unknown exception", "convert_exception()");
-  }}
-}}
+  }
+}
 
 inline Tango::DevState convert_state(device_state s)
-{{
+{
   // Make sure the hula definitions match up
   static_assert(static_cast<Tango::DevState>(device_state::on)==Tango::ON, "ON does not match up");
   static_assert(static_cast<Tango::DevState>(device_state::off)==Tango::OFF, "OFF does not match up");
@@ -677,33 +738,100 @@ inline Tango::DevState convert_state(device_state s)
   static_assert(static_cast<Tango::DevState>(device_state::disable)==Tango::DISABLE, "DISABLE does not match up");
   static_assert(static_cast<Tango::DevState>(device_state::unknown)==Tango::UNKNOWN, "UNKNOWN does not match up");
   return static_cast<Tango::DevState>(s);
-}}
-
-}} // namespace
+}
 
 )--";
-  out << fmt::format(HULA_IMPLEMENTATION_HEADER, spec.header_name, spec.base_name);
-  out << build_adaptor_class(spec);
 
-  for (auto const& each : spec.attributes)
+constexpr char const* HULA_IMPLEMENTATION_PUBLIC_SECTION_START = R"(
+} // namespace
+)";
+
+void check_names(std::vector<device_server_spec> const& spec_list)
+{
+  std::unordered_set<std::string> seen_names;
+  for (auto const& spec : spec_list)
   {
-    out << attribute_class(spec.ds_name, each) << std::endl;
+    auto name = spec.name.snake_cased();
+    auto [_, inserted] = seen_names.insert(name);
+    if (!inserted)
+    {
+      throw std::invalid_argument(fmt::format("Duplicated name: \"{0}\"", name));
+    }
+  }
+}
+
+int run(int argc, char* argv[])
+{
+  if (argc < 3)
+  {
+    fmt::print("{0} <spec> (<spec> ...) <output-path>\n", argv[0]);
+    return EXIT_FAILURE;
   }
 
-  for (auto const& each : spec.commands)
+  // The number of specs
+  auto const N = argc - 2;
+  std::filesystem::path output_path{argv[argc-1]};
+  if (!exists(output_path))
   {
-    out << command_class(spec.ds_name, each) << std::endl;
+    fmt::print("Output path {0} does not exist\n", output_path.string());
+    return EXIT_FAILURE;
   }
 
-  out << build_device_class(spec);
-  out << build_class_factory(spec);
-  out << build_runner(spec);
+  std::vector<device_server_spec> spec_list;
+  for (int i = 0; i < N; ++i)
+  {
+    auto input = toml::parse(argv[i+1]);
+    auto spec = toml::get<device_server_spec>(input);
+    spec_list.push_back(spec);
+  }
+
+  check_names(spec_list);
+
+  std::ofstream header_file(output_path / "hula_generated.hpp");
+  std::ofstream source_file(output_path / "hula_generated.cpp");
+  header_file << HULA_HEADER_HEADER;
+  source_file << HULA_IMPLEMENTATION_HEADER;
+
+  for (auto const& spec : spec_list)
+  {
+    header_file << build_device_properties_struct(spec);
+    header_file << build_base_class(spec);
+
+    std::ostream& out = source_file;
+
+    out << build_adaptor_class(spec);
+
+    out << build_grouping_namespace_start(spec);
+    for (auto const& each : spec.attributes)
+    {
+      out << attribute_class(spec.ds_name, each) << std::endl;
+    }
+
+    for (auto const& each : spec.commands)
+    {
+      out << command_class(spec.ds_name, each) << std::endl;
+    }
+    out << build_grouping_namespace_end(spec);
+    out << build_device_class(spec);
+  }
+
+  header_file << build_runner_declaration(spec_list);
+  header_file << HULA_HEADER_FOOTER;
+
+  source_file << HULA_IMPLEMENTATION_PUBLIC_SECTION_START;
+  source_file << build_class_factory(spec_list);
+  source_file << build_runner(spec_list);
 
   return EXIT_SUCCESS;
 }
 
 int main(int argc, char* argv[])
 {
+  if (argc == 0)
+  {
+    return EXIT_FAILURE;
+  }
+
   try
   {
     return run(argc, argv);

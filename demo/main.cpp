@@ -1,10 +1,10 @@
-#include "hula_cool_camera.hpp"
+#include "hula_generated.hpp"
 #include <iostream>
 
-class cool_camera : public cool_camera_base
+class cool_camera : public hula::cool_camera_base
 {
 public:
-  cool_camera(cool_camera_properties const& p)
+  cool_camera(hula::cool_camera_properties const& p)
   : address_(p.address)
   {
   }
@@ -71,9 +71,63 @@ private:
   std::string notes_;
 };
 
+class camera_stand : public hula::camera_stand_base
+{
+public:
+  camera_stand(hula::camera_stand_properties const& properties)
+  {
+  }
+private:
+
+  // Inherited via camera_stand_base
+  virtual std::string read_notes() override
+  {
+    return notes_;
+  }
+  virtual void write_notes(std::string const& rhs) override
+  {
+    notes_ = rhs;
+  }
+  virtual double read_position_x() override
+  {
+    return actual_x_;
+  }
+  virtual double read_position_y() override
+  {
+    return actual_y_;
+  }
+  virtual void move_x(double rhs) override
+  {
+    target_x_ = rhs;
+  }
+  virtual void move_y(double rhs) override
+  {
+    target_y_ = rhs;
+  }
+  virtual void act() override
+  {
+    actual_x_ = target_x_;
+    actual_y_ = target_y_;
+  }
+
+private:
+  double target_x_ = 0.;
+  double target_y_ = 0.;
+  
+  double actual_x_ = 0.;
+  double actual_y_ = 0.;
+
+  std::string notes_;
+};
+
 int main(int argc, char* argv[])
 {
-  return cool_camera::register_and_run(argc, argv, [] (cool_camera_properties const& p) {
+  auto camera_factory = [](hula::cool_camera_properties const& p) {
     return std::make_unique<cool_camera>(p); 
-  });
+  };
+  auto stand_factory = [](hula::camera_stand_properties const& p) {
+    return std::make_unique<camera_stand>(p);
+  };
+
+  return hula::register_and_run(argc, argv, camera_factory, stand_factory);
 }

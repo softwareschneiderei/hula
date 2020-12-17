@@ -135,6 +135,7 @@ struct device_server_spec : raw_device_server_spec
     ds_name = fmt::format("{0}TangoAdaptor", name.camel_cased());
     ds_class_name = fmt::format("{0}TangoClass", name.camel_cased());
     header_name = fmt::format("hula_{0}.hpp", name.snake_cased());
+    grouping_namespace_name = name.snake_cased();
   }
 
   std::string device_properties_name;
@@ -142,4 +143,5 @@ struct device_server_spec : raw_device_server_spec
   std::string ds_name;
   std::string ds_class_name;
   std::string header_name;
+  std::string grouping_namespace_name;
 };
