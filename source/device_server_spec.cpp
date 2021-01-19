@@ -30,7 +30,8 @@ access_type toml::from<access_type>::from_toml(value const& v)
 
 attribute_type_t::attribute_type_t(toml::value const& rhs)
 {
-  auto const& type_code = toml::find<std::string>(rhs, "type");
+  // Need an explicit type here to convert from toml::string to std::string
+  std::string const& type_code = rhs.as_string();
 
   auto suffix_begin = type_code.find('[');
   if (suffix_begin == std::string::npos)
