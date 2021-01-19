@@ -76,7 +76,7 @@ attribute_type_t::attribute_type_t(toml::value const& rhs)
   auto separator = suffix.find(',');
   if (separator == std::string::npos)
   {
-    rank = rank_t::vector;
+    rank = attribute_rank_t::spectrum;
     max_size[0] = parse_size(suffix);
     return;
   }
@@ -84,7 +84,7 @@ attribute_type_t::attribute_type_t(toml::value const& rhs)
   auto first = suffix.substr(0, separator);
   auto second = suffix.substr(separator+1);
 
-  this->rank = rank_t::matrix;
+  this->rank = attribute_rank_t::image;
   max_size[0] = parse_size(first);
   max_size[1] = parse_size(second);
 }

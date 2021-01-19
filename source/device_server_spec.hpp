@@ -75,11 +75,11 @@ struct device_property
   value_type type = value_type::void_t;
 };
 
-enum class rank_t
+enum class attribute_rank_t
 {
   scalar,
-  vector,
-  matrix
+  spectrum,
+  image
 };
 
 struct attribute_type_t
@@ -88,7 +88,7 @@ struct attribute_type_t
   explicit attribute_type_t(toml::value const& v);
 
   value_type type = value_type::void_t;
-  rank_t rank = rank_t::scalar;
+  attribute_rank_t rank = attribute_rank_t::scalar;
   std::array<std::uint32_t, 2> max_size{};
 };
 
