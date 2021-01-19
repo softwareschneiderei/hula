@@ -11,18 +11,20 @@ bool contains(std::vector<toml::value> const& parts, std::string const& key)
   }) != parts.end();
 }
 
-std::uint32_t parse_integer(std::string const& rhs)
+std::uint32_t parse_integer(std::string_view const& rhs)
 {
   std::size_t count = 0;
-  auto result = std::stoi(rhs, &count);
+  
+  auto str = std::string{rhs};
+  auto result = std::stoi(str, &count);
   if (count != rhs.size())
   {
-    throw std::invalid_argument("Malformed integer: " + rhs);
+    throw std::invalid_argument("Malformed integer: " + str);
   }
   return result;
 }
 
-std::uint32_t parse_size(std::string const& rhs)
+std::uint32_t parse_size(std::string_view const& rhs)
 {
   auto result = parse_integer(rhs);
   if (result <= 0)
@@ -30,6 +32,33 @@ std::uint32_t parse_size(std::string const& rhs)
     throw std::invalid_argument("Malformed size, it cannot be zero");
   }
   return result;
+}
+
+struct type_code_with_suffix
+{
+  std::string_view type;
+  std::string_view suffix;
+  // There's a difference between an empty suffix (e.g. string[]) and no suffix (e.g. string)
+  bool has_suffix = false;
+};
+
+type_code_with_suffix split_suffix(std::string_view const& type_code)
+{
+  auto suffix_begin = type_code.find('[');
+  if (suffix_begin == std::string::npos)
+  {
+    return {type_code, {}, false};
+  }
+
+  auto suffix_end = type_code.find(']', suffix_begin);
+  if (suffix_end == std::string::npos)
+  {
+    throw std::invalid_argument("Malformed attribute type suffix: no end brace.");
+  }
+
+  auto type_tag = type_code.substr(0, suffix_begin);
+  auto suffix = type_code.substr(suffix_begin+1, suffix_end-suffix_begin-1);
+  return {type_tag, suffix, true};
 }
 
 }
@@ -59,23 +88,15 @@ attribute_type_t::attribute_type_t(toml::value const& rhs)
 
 attribute_type_t::attribute_type_t(std::string const& type_code)
 {
-  auto suffix_begin = type_code.find('[');
-  if (suffix_begin == std::string::npos)
+  auto [tag, suffix, has_suffix] = split_suffix(type_code);
+
+  this->type = from_input_type(std::string{tag});
+
+  if (!has_suffix)
   {
-    this->type = from_input_type(type_code);
     return;
   }
-
-  auto suffix_end = type_code.find(']', suffix_begin);
-  if (suffix_end == std::string::npos)
-  {
-    throw std::invalid_argument("Malformed attribute type suffix: no end brace.");
-  }
-
-  auto type_tag = type_code.substr(0, suffix_begin);
-  this->type = from_input_type(type_tag);
-  auto suffix = type_code.substr(suffix_begin+1, suffix_end-suffix_begin-1);
-  
+    
   auto separator = suffix.find(',');
   if (separator == std::string::npos)
   {
@@ -100,5 +121,13 @@ command_type_t::command_type_t(toml::value const& v)
 
 command_type_t::command_type_t(std::string const& type_code)
 {
-  type = from_input_type(type_code);
+  auto [tag, suffix, has_suffix] = split_suffix(type_code);
+
+  if (has_suffix && !suffix.empty())
+  {
+    throw std::invalid_argument("Braces need to empty for array command types");
+  }
+
+  is_array = has_suffix;
+  type = from_input_type(std::string{tag});
 }
