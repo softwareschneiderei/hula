@@ -2,13 +2,36 @@
 
 namespace
 {
-  bool contains(std::vector<toml::value> const& parts, std::string const& key)
+
+bool contains(std::vector<toml::value> const& parts, std::string const& key)
+{
+  return std::find_if(parts.begin(), parts.end(), [&](toml::value const& lhs)
   {
-    return std::find_if(parts.begin(), parts.end(), [&](toml::value const& lhs)
-    {
-      return lhs.as_string() == key;
-    }) != parts.end();
+    return lhs.as_string() == key;
+  }) != parts.end();
+}
+
+std::uint32_t parse_integer(std::string const& rhs)
+{
+  std::size_t count = 0;
+  auto result = std::stoi(rhs, &count);
+  if (count != rhs.size())
+  {
+    throw std::invalid_argument("Malformed integer: " + rhs);
   }
+  return result;
+}
+
+std::uint32_t parse_size(std::string const& rhs)
+{
+  auto result = parse_integer(rhs);
+  if (result <= 0)
+  {
+    throw std::invalid_argument("Malformed size, it cannot be zero");
+  }
+  return result;
+}
+
 }
 
 access_type toml::from<access_type>::from_toml(value const& v)
@@ -46,7 +69,6 @@ attribute_type_t::attribute_type_t(toml::value const& rhs)
     throw std::invalid_argument("Malformed attribute type suffix: no end brace.");
   }
 
-  // TODO: Throws if starts with suffix?
   auto type_tag = type_code.substr(0, suffix_begin);
   this->type = from_input_type(type_tag);
   auto suffix = type_code.substr(suffix_begin+1, suffix_end-suffix_begin-1);
@@ -54,19 +76,15 @@ attribute_type_t::attribute_type_t(toml::value const& rhs)
   auto separator = suffix.find(',');
   if (separator == std::string::npos)
   {
-    // TODO: throw if content not parsable
-    std::size_t count = 0;
-    max_size[0] = std::stoi(suffix, &count);
     rank = rank_t::vector;
+    max_size[0] = parse_size(suffix);
     return;
   }
   
   auto first = suffix.substr(0, separator);
   auto second = suffix.substr(separator+1);
 
-  // TODO: throw if either content not parsable
   this->rank = rank_t::matrix;
-  std::size_t count = 0;
-  max_size[0] = std::stoi(first, &count);
-  max_size[1] = std::stoi(second, &count);
+  max_size[0] = parse_size(first);
+  max_size[1] = parse_size(second);
 }
