@@ -86,10 +86,21 @@ struct attribute_type_t
 {
   attribute_type_t() = default;
   explicit attribute_type_t(toml::value const& v);
+  explicit attribute_type_t(std::string const& v);
 
   value_type type = value_type::void_t;
   attribute_rank_t rank = attribute_rank_t::scalar;
   std::array<std::uint32_t, 2> max_size{};
+};
+
+struct command_type_t
+{
+  command_type_t() = default;
+  explicit command_type_t(toml::value const& v);
+  explicit command_type_t(std::string const& v);
+
+  value_type type = value_type::void_t;
+  bool is_array = false;
 };
 
 struct attribute

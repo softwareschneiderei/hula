@@ -52,10 +52,13 @@ access_type toml::from<access_type>::from_toml(value const& v)
 }
 
 attribute_type_t::attribute_type_t(toml::value const& rhs)
+// Need an explicit type here to convert from toml::string to std::string
+: attribute_type_t(static_cast<std::string const&>(rhs.as_string()))
 {
-  // Need an explicit type here to convert from toml::string to std::string
-  std::string const& type_code = rhs.as_string();
+}
 
+attribute_type_t::attribute_type_t(std::string const& type_code)
+{
   auto suffix_begin = type_code.find('[');
   if (suffix_begin == std::string::npos)
   {
@@ -87,4 +90,15 @@ attribute_type_t::attribute_type_t(toml::value const& rhs)
   this->rank = attribute_rank_t::image;
   max_size[0] = parse_size(first);
   max_size[1] = parse_size(second);
+}
+
+command_type_t::command_type_t(toml::value const& v)
+// Need an explicit type here to convert from toml::string to std::string
+: command_type_t(static_cast<std::string const&>(v.as_string()))
+{
+}
+
+command_type_t::command_type_t(std::string const& type_code)
+{
+  type = from_input_type(type_code);
 }
