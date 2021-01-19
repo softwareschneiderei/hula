@@ -75,6 +75,23 @@ struct device_property
   value_type type = value_type::void_t;
 };
 
+enum class rank_t
+{
+  scalar,
+  vector,
+  matrix
+};
+
+struct attribute_type_t
+{
+  attribute_type_t() = default;
+  explicit attribute_type_t(toml::value const& v);
+
+  value_type type = value_type::void_t;
+  rank_t rank = rank_t::scalar;
+  std::array<std::uint32_t, 2> max_size{};
+};
+
 struct attribute
 {
   attribute() = default;
