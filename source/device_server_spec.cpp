@@ -96,6 +96,11 @@ attribute_type_t::attribute_type_t(std::string const& type_code)
   {
     return;
   }
+
+  if (type == value_type::void_t)
+  {
+    throw std::invalid_argument("Cannot have void arrays");
+  }
     
   auto separator = suffix.find(',');
   if (separator == std::string::npos)
@@ -130,4 +135,9 @@ command_type_t::command_type_t(std::string const& type_code)
 
   is_array = has_suffix;
   type = from_input_type(std::string{tag});
+
+  if (is_array && type == value_type::void_t)
+  {
+    throw std::invalid_argument("Cannot have void arrays");
+  }
 }

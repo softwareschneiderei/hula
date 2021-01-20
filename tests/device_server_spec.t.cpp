@@ -72,3 +72,14 @@ TEST_CASE("can_parse_array_command_type", "[command_type_t]")
   REQUIRE(parsed.type == value_type::string_t);
   REQUIRE(parsed.is_array == true);
 }
+
+TEST_CASE("command_type_throws_on_void_arrays", "[command_type_t]")
+{
+  REQUIRE_THROWS_AS(command_type_t{"void[]"s}, std::invalid_argument);
+}
+
+TEST_CASE("attribute_type_throws_on_void_arrays", "[attribute_type_t]")
+{
+  REQUIRE_THROWS_AS(attribute_type_t{"void[2]"s}, std::invalid_argument);
+  REQUIRE_THROWS_AS(attribute_type_t{"void[3,5]"s}, std::invalid_argument);
+}
