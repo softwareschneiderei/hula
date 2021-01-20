@@ -14,6 +14,13 @@ enum class value_type
   image16_t,
 };
 
+enum class attribute_rank_t
+{
+  scalar,
+  spectrum,
+  image
+};
+
 struct name_type_info_t
 {
   value_type key;

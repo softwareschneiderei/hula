@@ -64,7 +64,7 @@ public:
     return {};
   }
 
-  std::vector<std::int32_t> read_raw_image() override
+  hula::image<std::int32_t> read_raw_image() override
   {
     return {};
   }

@@ -75,13 +75,6 @@ struct device_property
   value_type type = value_type::void_t;
 };
 
-enum class attribute_rank_t
-{
-  scalar,
-  spectrum,
-  image
-};
-
 struct attribute_type_t
 {
   attribute_type_t() = default;
@@ -206,12 +199,20 @@ inline char const* tango_type_enum(attribute_type_t const& type)
   return tango_type_enum(type.type, type.rank != attribute_rank_t::scalar);
 }
 
-inline char const* cpp_type(attribute_type_t const& type)
+inline std::string cpp_type(attribute_type_t const& type)
 {
+  if (type.rank == attribute_rank_t::image)
+  {
+    return fmt::format("image<{0}>", cpp_type(type.type, false));
+  }
   return cpp_type(type.type, type.rank != attribute_rank_t::scalar);
 }
 
-inline char const* cpp_parameter_list(attribute_type_t const& type)
+inline std::string cpp_parameter_list(attribute_type_t const& type)
 {
+  if (type.rank == attribute_rank_t::image)
+  {
+    return fmt::format("image<{0}> const&", cpp_type(type.type, false));
+  }
   return cpp_parameter_list(type.type, type.rank != attribute_rank_t::scalar);
 }
