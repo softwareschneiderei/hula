@@ -200,7 +200,7 @@ constexpr char const* ATTRIBUTE_READ_FUNCTION_TEMPLATE = R"(
     {{
       convert_exception();
     }}
-    attr.set_value(&read_value);
+    attr.set_value({4});
   }}
 )";
 
@@ -226,14 +226,40 @@ std::string attribute_class(std::string const& class_prefix, std::string const& 
   return fmt::format(ATTRIBUTE_CLASS_TEMPLATE, class_prefix, name, type, mutability, members);
 }
 
+std::string read_value_type(attribute_type_t const& type)
+{
+  if (type.rank == attribute_rank_t::scalar)
+    return tango_type(type);
+
+  // Vector of the element type
+  return fmt::format("std::vector<{0}>", tango_type(type.type));
+}
+
 std::string attribute_class(std::string const& ds_name, attribute const& input)
 {
   std::ostringstream str;
 
   if (is_readable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name,
-      tango_type(input.type), input.name.snake_cased(), cpp_type(input.type));
+    std::string set_value_args;
+
+    // TODO: Sizes must actually come from user code
+    if (input.type.rank == attribute_rank_t::spectrum)
+    {
+      set_value_args = fmt::format("read_value.data(), {0}", input.type.max_size[0]);
+    }
+    else if (input.type.rank == attribute_rank_t::image)
+    {
+      set_value_args = fmt::format("read_value.data(), {0}, {1}", input.type.max_size[0], input.type.max_size[1]);
+    }
+    else
+    {
+      set_value_args = "&read_value";
+    }
+
+    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE,
+      ds_name, read_value_type(input.type), input.name.snake_cased(),
+      cpp_type(input.type), set_value_args);
   }
 
   if (is_writable(input.access))
@@ -646,12 +672,12 @@ struct to_tango
   }
 };
 
-template <class CorbaSequence, class T>
-inline void assign_to_corba(CorbaSequence& lhs, std::vector<T> const& rhs)
+template <class T, class X>
+inline void assign_to(std::vector<T>& lhs, std::vector<X> const& rhs)
 {
-  lhs.length(rhs.size());
+  lhs.resize(rhs.size());
   for (std::size_t i = 0, ie = rhs.size(); i < ie; ++i)
-    lhs[i] = rhs[i];
+    lhs[i] = static_cast<T>(rhs[i]);
 }
 
 
@@ -728,27 +754,27 @@ struct to_tango<image<std::uint16_t>>
 template <>
 struct to_tango<std::vector<std::int32_t>>
 {
-  static void assign(Tango::DevVarLongArray& lhs, std::vector<std::int32_t> const& rhs)
+  static void assign(std::vector<Tango::DevLong>& lhs, std::vector<std::int32_t> const& rhs)
   {
-    assign_to_corba(lhs, rhs);
+    assign_to(lhs, rhs);
   }
 };
 
 template <>
 struct to_tango<std::vector<double>>
 {
-  static void assign(Tango::DevVarDoubleArray& lhs, std::vector<double> const& rhs)
+  static void assign(std::vector<Tango::DevDouble>& lhs, std::vector<double> const& rhs)
   {
-    assign_to_corba(lhs, rhs);
+    assign_to(lhs, rhs);
   }
 };
 
 template <>
 struct to_tango<std::vector<float>>
 {
-  static void assign(Tango::DevVarFloatArray& lhs, std::vector<float> const& rhs)
+  static void assign(std::vector<Tango::DevFloat>& lhs, std::vector<float> const& rhs)
   {
-    assign_to_corba(lhs, rhs);
+    assign_to(lhs, rhs);
   }
 };
 
