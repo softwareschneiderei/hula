@@ -108,13 +108,13 @@ struct attribute
   attribute() = default;
   explicit attribute(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
-  , type(toml::find<value_type>(v, "type"))
+  , type(toml::find<attribute_type_t>(v, "type"))
   , access(toml::find_or<access_type>(v, "access", access_type::read_only))
   {
   }
 
   uncased_name name;
-  value_type type = value_type::void_t;
+  attribute_type_t type;
   access_type access = access_type::read_only;
 };
 
@@ -123,14 +123,14 @@ struct command
   command() = default;
   explicit command(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
-  , return_type(toml::find<value_type>(v, "return_type"))
-  , parameter_type(toml::find<value_type>(v, "parameter_type"))
+  , return_type(toml::find<command_type_t>(v, "return_type"))
+  , parameter_type(toml::find<command_type_t>(v, "parameter_type"))
   {
   }
 
   uncased_name name;
-  value_type return_type = value_type::void_t;
-  value_type parameter_type = value_type::void_t;
+  command_type_t return_type;
+  command_type_t parameter_type;
 };
 
 struct raw_device_server_spec

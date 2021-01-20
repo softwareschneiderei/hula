@@ -233,15 +233,15 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
   if (is_readable(input.access))
   {
     str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name,
-      tango_type(input.type), input.name.snake_cased(), cpp_type(input.type));
+      tango_type(input.type.type), input.name.snake_cased(), cpp_type(input.type.type));
   }
 
   if (is_writable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, tango_type(input.type), input.name.snake_cased());
+    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, tango_type(input.type.type), input.name.snake_cased());
   }
 
-  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), tango_access_enum(input.access), str.str());
+  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type.type), tango_access_enum(input.access), str.str());
 }
 
 std::string build_base_class(device_server_spec const& spec)
@@ -255,11 +255,11 @@ std::string build_base_class(device_server_spec const& spec)
     {
       if (is_readable(each.access))
       {
-        str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name.snake_cased());
+        str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type.type), each.name.snake_cased());
       }
       if (is_writable(each.access))
       {
-        str << fmt::format("  virtual void write_{0}({1}) = 0;\n", each.name.snake_cased(), cpp_parameter_list(each.type));
+        str << fmt::format("  virtual void write_{0}({1}) = 0;\n", each.name.snake_cased(), cpp_parameter_list(each.type.type));
       }
     }
   }
@@ -269,7 +269,7 @@ std::string build_base_class(device_server_spec const& spec)
     str << "\n  // commands\n";
     for (auto const& each : spec.commands)
     {
-      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type), each.name.snake_cased(), cpp_parameter_list(each.parameter_type));
+      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type.type), each.name.snake_cased(), cpp_parameter_list(each.parameter_type.type));
     }
   }
 
@@ -342,26 +342,26 @@ constexpr char const* COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE = R"(
 
 std::string command_execute_impl(command const& cmd)
 {
-  if (cmd.parameter_type == value_type::void_t)
+  if (cmd.parameter_type.type == value_type::void_t)
   {
-    if (cmd.return_type == value_type::void_t)
+    if (cmd.return_type.type == value_type::void_t)
     {
       return fmt::format(COMMAND_VOID_TO_VOID_EXECUTE_TEMPLATE, cmd.name.snake_cased());
     }
     else
     {
-      return fmt::format(COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE, cmd.name.snake_cased(), cpp_type(cmd.return_type));
+      return fmt::format(COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE, cmd.name.snake_cased(), cpp_type(cmd.return_type.type));
     }
   }
   else
   {
-    if (cmd.return_type == value_type::void_t)
+    if (cmd.return_type.type == value_type::void_t)
     {
-      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type), cmd.name.snake_cased());
+      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type.type), cmd.name.snake_cased());
     }
     else
     {
-      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type), cmd.name.snake_cased(), cpp_type(cmd.return_type));
+      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type.type), cmd.name.snake_cased(), cpp_type(cmd.return_type.type));
     }
   }
 }
@@ -369,7 +369,7 @@ std::string command_execute_impl(command const& cmd)
 std::string command_class(std::string const& ds_name, command const& input)
 {
   auto execute = command_execute_impl(input);
-  return fmt::format(COMMAND_CLASS_TEMPLATE, input.name.camel_cased(), tango_type_enum(input.parameter_type), tango_type_enum(input.return_type), execute, ds_name);
+  return fmt::format(COMMAND_CLASS_TEMPLATE, input.name.camel_cased(), tango_type_enum(input.parameter_type.type), tango_type_enum(input.return_type.type), execute, ds_name);
 }
 
 std::string load_device_properties_impl(device_server_spec const& spec)
