@@ -51,7 +51,7 @@ namespace toml
     static value_type from_toml(value const& v)
     {
       auto const& code = v.as_string();
-      return from_input_type(code);
+      return from_input_type(static_cast<std::string const&>(code));
     }
   };
 
