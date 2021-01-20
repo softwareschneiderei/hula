@@ -212,7 +212,7 @@ inline std::string cpp_parameter_list(attribute_type_t const& type)
 {
   if (type.rank == attribute_rank_t::image)
   {
-    return fmt::format("image<{0}> const&", cpp_type(type.type, false));
+    return fmt::format("image<{0}> const& rhs", cpp_type(type.type, false));
   }
   return cpp_parameter_list(type.type, type.rank != attribute_rank_t::scalar);
 }

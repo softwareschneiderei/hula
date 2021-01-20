@@ -12,12 +12,17 @@ access = ["read", "write"]
 [[attributes]]
 name = "position"
 type = "double[2]"
-access = ["read"]
+access = ["read", "write"]
 
 [[attributes]]
 name = "steps"
 type = "int32[2]"
 access = ["read"]
+
+[[attributes]]
+name = "label_image"
+type = "int32[128,32]" # Would ideally use int16 here, but that is not available yet
+access = ["read", "write"]
 
 [[commands]]
 name = "move"

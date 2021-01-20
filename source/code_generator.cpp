@@ -1,5 +1,7 @@
 #include "code_generator.hpp"
 
+using namespace std::string_literals;
+
 template <class T, class Transform>
 std::string join_applied(std::vector<T> const& input, std::string const& separator, Transform transform)
 {
@@ -37,6 +39,8 @@ constexpr char const* BASE_CLASS_TEMPLATE = R"(
 class {0}
 {{
 public:
+  template <class T>
+  using image = hula::image<T>;
   using device_state = hula::device_state;
   using operating_state_result = hula::operating_state_result;
   using factory_type = std::function<std::unique_ptr<{0}>({1} const& properties)>;
@@ -212,7 +216,7 @@ constexpr char const* ATTRIBUTE_WRITE_FUNCTION_TEMPLATE = R"(
     attr.get_write_value(arg);
     try
     {{
-      impl->write_{2}(arg);
+      impl->write_{2}({3});
     }}
     catch(...)
     {{
@@ -245,6 +249,20 @@ std::string read_value_type(attribute_type_t const& type)
   }
 }
 
+std::string write_temporary_type(attribute_type_t const& type)
+{
+  switch (type.rank)
+  {
+  default:
+  case attribute_rank_t::scalar:
+    return tango_type(type);
+
+  case attribute_rank_t::spectrum:
+  case attribute_rank_t::image:
+    return tango_type(type.type, false) + " const*"s;
+  };
+}
+
 std::string attribute_class(std::string const& ds_name, attribute const& input)
 {
   std::ostringstream str;
@@ -269,8 +287,6 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
   if (is_readable(input.access))
   {
     std::string set_value_args;
-    using namespace std::string_literals;
-    // TODO: Sizes must actually come from user code
     if (input.type.rank == attribute_rank_t::spectrum)
     {
       set_value_args = "read_value.data(), read_value.size()"s;
@@ -291,7 +307,18 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
 
   if (is_writable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, tango_type(input.type), input.name.snake_cased());
+    std::string argument = "arg"s;
+    if (input.type.rank == attribute_rank_t::spectrum)
+    {
+      argument = fmt::format("std::vector<{0}>{{arg, arg+attr.get_w_dim_x()}}", cpp_type(input.type.type, false));
+    }
+    else if (input.type.rank == attribute_rank_t::image)
+    {
+      // This is quite ugly. Could maybe use generic Tango::WAttribute to image<T> conversion code
+      argument = fmt::format("image<{0}>{{std::vector<{0}>{{arg, arg+(attr.get_w_dim_x()*attr.get_w_dim_y())}},\n        static_cast<std::size_t>(attr.get_w_dim_x()),\n        static_cast<std::size_t>(attr.get_w_dim_y())}}", cpp_type(input.type.type, false));
+    }
+
+    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, write_temporary_type(input.type), input.name.snake_cased(), argument);
   }
 
   // Attribute type. That is just the element type for spectrums and images
