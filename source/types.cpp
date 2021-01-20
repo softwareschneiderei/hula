@@ -103,6 +103,14 @@ scalar_type_info_t const& scalar_info_for(value_type v)
   return *found->second;
 }
 
+array_type_info_t const& array_info_for(value_type v)
+{
+  auto found = array_map.find(v);
+  if (found == array_map.end())
+    throw std::invalid_argument("Unsupported type");
+  return *found->second;
+}
+
 value_type from_input_type(std::string_view const& v)
 {
   auto found = enum_map.find(v);
@@ -111,8 +119,10 @@ value_type from_input_type(std::string_view const& v)
   return found->second;
 }
 
-char const* tango_type_enum(value_type v)
+char const* tango_type_enum(value_type v, bool is_array)
 {
+  if (is_array)
+    return array_info_for(v).tango_type_enum;
   return scalar_info_for(v).tango_type_enum;
 }
 
@@ -121,10 +131,9 @@ std::string_view name_for(value_type v)
   return name_map.at(v);
 }
 
-const char* tango_type(value_type v)
+const char* tango_type(value_type v, bool is_array)
 {
-  auto const& info = scalar_info_for(v);
-  auto result = info.tango_type;
+  auto result = is_array ? array_info_for(v).tango_type : scalar_info_for(v).tango_type;
   if (result == nullptr)
   {
     throw std::invalid_argument(fmt::format("Type {0} has no corresponding tango type", name_for(v)));
@@ -132,12 +141,16 @@ const char* tango_type(value_type v)
   return result;
 }
 
-const char* cpp_type(value_type v)
+const char* cpp_type(value_type v, bool is_array)
 {
+  if (is_array)
+    return array_info_for(v).cpp_type;
   return scalar_info_for(v).cpp_type;
 }
 
-const char* cpp_parameter_list(value_type v)
+const char* cpp_parameter_list(value_type v, bool is_array)
 {
+  if (is_array)
+    return array_info_for(v).cpp_parameter_list;
   return scalar_info_for(v).cpp_parameter_list;
 }

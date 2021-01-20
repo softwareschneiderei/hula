@@ -59,6 +59,21 @@ public:
     return "You said " + rhs + " @ " + address_;
   }
 
+  hula::image<std::uint8_t> read_image() override
+  {
+    return {};
+  }
+
+  std::vector<std::int32_t> read_raw_image() override
+  {
+    return {};
+  }
+
+  std::vector<std::int32_t> read_histogram() override
+  {
+    return {};
+  }
+
   operating_state_result operating_state() override
   {
     return {device_state::on, "Powered on!"};
@@ -88,21 +103,14 @@ private:
   {
     notes_ = rhs;
   }
-  virtual double read_position_x() override
+  virtual std::vector<double> read_position() override
   {
-    return actual_x_;
+    return {actual_x_, actual_y_};
   }
-  virtual double read_position_y() override
+  virtual void move(std::vector<double> const& rhs) override
   {
-    return actual_y_;
-  }
-  virtual void move_x(double rhs) override
-  {
-    target_x_ = rhs;
-  }
-  virtual void move_y(double rhs) override
-  {
-    target_y_ = rhs;
+    target_x_ = rhs.at(0);
+    target_y_ = rhs.at(1);
   }
   virtual void act() override
   {
@@ -118,6 +126,12 @@ private:
   double actual_y_ = 0.;
 
   std::string notes_;
+
+  // Inherited via camera_stand_base
+  virtual std::vector<std::int32_t> read_steps() override
+  {
+    return std::vector<std::int32_t>();
+  }
 };
 
 int main(int argc, char* argv[])

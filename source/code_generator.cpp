@@ -233,15 +233,15 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
   if (is_readable(input.access))
   {
     str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name,
-      tango_type(input.type.type), input.name.snake_cased(), cpp_type(input.type.type));
+      tango_type(input.type), input.name.snake_cased(), cpp_type(input.type));
   }
 
   if (is_writable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, tango_type(input.type.type), input.name.snake_cased());
+    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, tango_type(input.type), input.name.snake_cased());
   }
 
-  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type.type), tango_access_enum(input.access), str.str());
+  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), tango_access_enum(input.access), str.str());
 }
 
 std::string build_base_class(device_server_spec const& spec)
@@ -255,11 +255,11 @@ std::string build_base_class(device_server_spec const& spec)
     {
       if (is_readable(each.access))
       {
-        str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type.type), each.name.snake_cased());
+        str << fmt::format("  virtual {0} read_{1}() = 0;\n", cpp_type(each.type), each.name.snake_cased());
       }
       if (is_writable(each.access))
       {
-        str << fmt::format("  virtual void write_{0}({1}) = 0;\n", each.name.snake_cased(), cpp_parameter_list(each.type.type));
+        str << fmt::format("  virtual void write_{0}({1}) = 0;\n", each.name.snake_cased(), cpp_parameter_list(each.type));
       }
     }
   }
@@ -269,7 +269,7 @@ std::string build_base_class(device_server_spec const& spec)
     str << "\n  // commands\n";
     for (auto const& each : spec.commands)
     {
-      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type.type), each.name.snake_cased(), cpp_parameter_list(each.parameter_type.type));
+      str << fmt::format("  virtual {0} {1}({2}) = 0;\n", cpp_type(each.return_type), each.name.snake_cased(), cpp_parameter_list(each.parameter_type));
     }
   }
 
@@ -318,7 +318,7 @@ constexpr char const* COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE = R"(
     extract(input, arg);
     try
     {{
-      impl->{1}(arg);
+      impl->{2}(prepare<{1}>::argument(arg));
     }}
     catch(...)
     {{
@@ -332,13 +332,23 @@ constexpr char const* COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE = R"(
     extract(input, arg);
     try
     {{
-      return insert(to_tango<{2}>::convert(impl->{1}(arg)));
+      return insert(to_tango<{3}>::convert(impl->{2}(prepare<{1}>::argument(arg))));
     }}
     catch(...)
     {{
       convert_exception();
     }}
 )";
+
+std::string command_temporary_type(command_type_t const& type)
+{
+  std::string base = tango_type(type);
+  if (type.is_array)
+  {
+    return base + " const*";
+  }
+  return base;
+}
 
 std::string command_execute_impl(command const& cmd)
 {
@@ -350,18 +360,22 @@ std::string command_execute_impl(command const& cmd)
     }
     else
     {
-      return fmt::format(COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE, cmd.name.snake_cased(), cpp_type(cmd.return_type.type));
+      return fmt::format(COMMAND_VOID_TO_VALUE_EXECUTE_TEMPLATE, cmd.name.snake_cased(), cpp_type(cmd.return_type));
     }
   }
   else
   {
     if (cmd.return_type.type == value_type::void_t)
     {
-      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type.type), cmd.name.snake_cased());
+      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE,
+        command_temporary_type(cmd.parameter_type),
+        cpp_type(cmd.parameter_type), cmd.name.snake_cased());
     }
     else
     {
-      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type.type), cmd.name.snake_cased(), cpp_type(cmd.return_type.type));
+      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE,
+        command_temporary_type(cmd.parameter_type), cpp_type(cmd.parameter_type),
+        cmd.name.snake_cased(), cpp_type(cmd.return_type));
     }
   }
 }
@@ -369,7 +383,11 @@ std::string command_execute_impl(command const& cmd)
 std::string command_class(std::string const& ds_name, command const& input)
 {
   auto execute = command_execute_impl(input);
-  return fmt::format(COMMAND_CLASS_TEMPLATE, input.name.camel_cased(), tango_type_enum(input.parameter_type.type), tango_type_enum(input.return_type.type), execute, ds_name);
+  return fmt::format(COMMAND_CLASS_TEMPLATE,
+    input.name.camel_cased(),
+    tango_type_enum(input.parameter_type),
+    tango_type_enum(input.return_type),
+    execute, ds_name);
 }
 
 std::string load_device_properties_impl(device_server_spec const& spec)
@@ -628,6 +646,38 @@ struct to_tango
   }
 };
 
+template <class CorbaSequence, class T>
+inline void assign_to_corba(CorbaSequence& lhs, std::vector<T> const& rhs)
+{
+  lhs.length(rhs.size());
+  for (std::size_t i = 0, ie = rhs.size(); i < ie; ++i)
+    lhs[i] = rhs[i];
+}
+
+
+template <class T>
+struct prepare
+{
+  template <class X>
+  static T argument(X v)
+  {
+    return v;
+  }
+};
+
+template <class T>
+struct prepare<std::vector<T>>
+{
+  template <class S>
+  static std::vector<T> argument(_CORBA_Unbounded_Sequence<S> const* rhs)
+  {
+    std::vector<T> result(rhs->length());
+    for (std::size_t i = 0, ie = result.size(); i < ie; ++i)
+      result[i] = (*rhs)[i];
+    return result;
+  }
+};
+
 // std::int32_t and Tango::DevLong are not the same on some OSes, e.g. Win32
 template <>
 struct to_tango<std::int32_t>
@@ -672,6 +722,33 @@ struct to_tango<image<std::uint16_t>>
   static void assign(Tango::EncodedAttribute& lhs, image<std::uint16_t>& rhs)
   {
     lhs.encode_gray16(rhs.data.data(), rhs.width, rhs.height);
+  }
+};
+
+template <>
+struct to_tango<std::vector<std::int32_t>>
+{
+  static void assign(Tango::DevVarLongArray& lhs, std::vector<std::int32_t> const& rhs)
+  {
+    assign_to_corba(lhs, rhs);
+  }
+};
+
+template <>
+struct to_tango<std::vector<double>>
+{
+  static void assign(Tango::DevVarDoubleArray& lhs, std::vector<double> const& rhs)
+  {
+    assign_to_corba(lhs, rhs);
+  }
+};
+
+template <>
+struct to_tango<std::vector<float>>
+{
+  static void assign(Tango::DevVarFloatArray& lhs, std::vector<float> const& rhs)
+  {
+    assign_to_corba(lhs, rhs);
   }
 };
 

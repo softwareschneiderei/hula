@@ -174,3 +174,44 @@ struct device_server_spec : raw_device_server_spec
   std::string header_name;
   std::string grouping_namespace_name;
 };
+
+// Facades for the type lookup
+inline char const* tango_type(command_type_t const& type)
+{
+  return tango_type(type.type, type.is_array);
+}
+
+inline char const* tango_type_enum(command_type_t const& type)
+{
+  return tango_type_enum(type.type, type.is_array);
+}
+
+inline char const* cpp_type(command_type_t const& type)
+{
+  return cpp_type(type.type, type.is_array);
+}
+
+inline char const* cpp_parameter_list(command_type_t const& type)
+{
+  return cpp_parameter_list(type.type, type.is_array);
+}
+
+inline char const* tango_type(attribute_type_t const& type)
+{
+  return tango_type(type.type, type.rank != attribute_rank_t::scalar);
+}
+
+inline char const* tango_type_enum(attribute_type_t const& type)
+{
+  return tango_type_enum(type.type, type.rank != attribute_rank_t::scalar);
+}
+
+inline char const* cpp_type(attribute_type_t const& type)
+{
+  return cpp_type(type.type, type.rank != attribute_rank_t::scalar);
+}
+
+inline char const* cpp_parameter_list(attribute_type_t const& type)
+{
+  return cpp_parameter_list(type.type, type.rank != attribute_rank_t::scalar);
+}

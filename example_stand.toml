@@ -16,7 +16,7 @@ access = ["read"]
 
 [[attributes]]
 name = "steps"
-type = "int[2]"
+type = "int32[2]"
 access = ["read"]
 
 [[commands]]
