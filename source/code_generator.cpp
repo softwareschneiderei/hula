@@ -177,11 +177,11 @@ public:
 )";
 
 constexpr char const* ATTRIBUTE_CLASS_TEMPLATE = R"(
-class {0}Attrib : public Tango::Attr
+class {0}Attrib : public {6}
 {{
 public:
   {0}Attrib()
-  : Tango::Attr("{1}", {2}, {3}) {{}}
+  : {6}("{1}", {2}, {3}{5}) {{}}
   ~{0}Attrib() final = default;
 {4}
 }};
@@ -221,9 +221,12 @@ constexpr char const* ATTRIBUTE_WRITE_FUNCTION_TEMPLATE = R"(
   }}
 )";
 
-std::string attribute_class(std::string const& class_prefix, std::string const& name, std::string const& type, std::string const& mutability, std::string const& members)
+std::string attribute_class(std::string const& class_prefix, std::string const& name,
+  std::string const& type, std::string const& mutability, std::string const& members,
+  std::string const& additional_ctor_args, std::string const& attribute_base_class)
 {
-  return fmt::format(ATTRIBUTE_CLASS_TEMPLATE, class_prefix, name, type, mutability, members);
+  return fmt::format(ATTRIBUTE_CLASS_TEMPLATE, class_prefix, name, type, mutability,
+    members, additional_ctor_args, attribute_base_class);
 }
 
 std::string read_value_type(attribute_type_t const& type)
@@ -239,6 +242,23 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
 {
   std::ostringstream str;
 
+  std::string additional_ctor_args;
+  std::string attribute_base_class;
+  switch (input.type.rank)
+  {
+  case attribute_rank_t::image:
+    additional_ctor_args = fmt::format(", {0}, {1}", input.type.max_size[0], input.type.max_size[1]);
+    attribute_base_class = "Tango::ImageAttr";
+    break;
+  case attribute_rank_t::spectrum:
+    additional_ctor_args = fmt::format(", {0}", input.type.max_size[0]);
+    attribute_base_class = "Tango::SpectrumAttr";
+    break;
+  default:
+  case attribute_rank_t::scalar:
+    attribute_base_class = "Tango::Attr";
+    break;
+  };
   if (is_readable(input.access))
   {
     std::string set_value_args;
@@ -267,7 +287,12 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
     str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, tango_type(input.type), input.name.snake_cased());
   }
 
-  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), tango_access_enum(input.access), str.str());
+  // Attribute type. That is just the element type for spectrums and images
+  auto attribute_tango_type = tango_type_enum(input.type.type);
+
+  return attribute_class(input.name.camel_cased(), input.name.camel_cased(),
+    attribute_tango_type, tango_access_enum(input.access),
+    str.str(), additional_ctor_args, attribute_base_class);
 }
 
 std::string build_base_class(device_server_spec const& spec)
