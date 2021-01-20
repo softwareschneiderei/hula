@@ -235,7 +235,7 @@ std::string read_value_type(attribute_type_t const& type)
     return tango_type(type);
 
   // Vector of the element type
-  return fmt::format("std::vector<{0}>", tango_type(type.type));
+  return fmt::format("std::vector<{0}>", tango_type(type.type, false));
 }
 
 std::string attribute_class(std::string const& ds_name, attribute const& input)
@@ -288,7 +288,7 @@ std::string attribute_class(std::string const& ds_name, attribute const& input)
   }
 
   // Attribute type. That is just the element type for spectrums and images
-  auto attribute_tango_type = tango_type_enum(input.type.type);
+  auto attribute_tango_type = tango_type_enum(input.type.type, false);
 
   return attribute_class(input.name.camel_cased(), input.name.camel_cased(),
     attribute_tango_type, tango_access_enum(input.access),
@@ -470,7 +470,7 @@ std::string load_device_properties_impl(device_server_spec const& spec)
   for (auto const& device_property : spec.device_properties)
   {
     init_list << fmt::format("\"{0}\",", device_property.name.camel_cased());
-    loader_code << fmt::format(LOAD_TEMPLATE, index++, device_property.name.snake_cased(), cpp_type(device_property.type));
+    loader_code << fmt::format(LOAD_TEMPLATE, index++, device_property.name.snake_cased(), cpp_type(device_property.type, false));
   }
 
   return fmt::format(IMPL_TEMPLATE, spec.device_properties_name, init_list.str(), loader_code.str());
@@ -602,7 +602,7 @@ std::string build_device_properties_struct(device_server_spec const& spec)
   std::ostringstream str;
   for (auto const& device_property : spec.device_properties)
   {
-    str << fmt::format("  {0} {1}{{}};\n", cpp_type(device_property.type), device_property.name.snake_cased());
+    str << fmt::format("  {0} {1}{{}};\n", cpp_type(device_property.type, false), device_property.name.snake_cased());
   }
   return fmt::format(DEVICE_PROPERTIES_TEMPLATE, spec.device_properties_name, str.str());
 }

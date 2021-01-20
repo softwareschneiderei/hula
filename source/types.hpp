@@ -42,11 +42,10 @@ struct array_type_info_t
 scalar_type_info_t const& scalar_info_for(value_type v);
 array_type_info_t const& array_info_for(value_type v);
 
-// TODO: remove the default-parameters once array types are properly integrated
-char const* tango_type_enum(value_type v, bool is_array = false);
-const char* tango_type(value_type v, bool is_array = false);
-const char* cpp_type(value_type v, bool is_array = false);
-const char* cpp_parameter_list(value_type v, bool is_array = false);
+char const* tango_type_enum(value_type v, bool is_array);
+const char* tango_type(value_type v, bool is_array);
+const char* cpp_type(value_type v, bool is_array);
+const char* cpp_parameter_list(value_type v, bool is_array);
 
 std::string_view name_for(value_type v);
 
