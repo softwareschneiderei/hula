@@ -1,5 +1,7 @@
 #include "code_generator.hpp"
 
+using namespace std::string_literals;
+
 template <class T, class Transform>
 std::string join_applied(std::vector<T> const& input, std::string const& separator, Transform transform)
 {
@@ -37,6 +39,8 @@ constexpr char const* BASE_CLASS_TEMPLATE = R"(
 class {0}
 {{
 public:
+  template <class T>
+  using image = hula::image<T>;
   using device_state = hula::device_state;
   using operating_state_result = hula::operating_state_result;
   using factory_type = std::function<std::unique_ptr<{0}>({1} const& properties)>;
@@ -177,11 +181,11 @@ public:
 )";
 
 constexpr char const* ATTRIBUTE_CLASS_TEMPLATE = R"(
-class {0}Attrib : public Tango::Attr
+class {0}Attrib : public {6}
 {{
 public:
   {0}Attrib()
-  : Tango::Attr("{1}", {2}, {3}) {{}}
+  : {6}("{1}", {2}, {3}{5}) {{}}
   ~{0}Attrib() final = default;
 {4}
 }};
@@ -200,7 +204,7 @@ constexpr char const* ATTRIBUTE_READ_FUNCTION_TEMPLATE = R"(
     {{
       convert_exception();
     }}
-    attr.set_value(&read_value);
+    attr.set_value({4});
   }}
 )";
 
@@ -212,7 +216,7 @@ constexpr char const* ATTRIBUTE_WRITE_FUNCTION_TEMPLATE = R"(
     attr.get_write_value(arg);
     try
     {{
-      impl->write_{2}(arg);
+      impl->write_{2}({3});
     }}
     catch(...)
     {{
@@ -221,27 +225,108 @@ constexpr char const* ATTRIBUTE_WRITE_FUNCTION_TEMPLATE = R"(
   }}
 )";
 
-std::string attribute_class(std::string const& class_prefix, std::string const& name, std::string const& type, std::string const& mutability, std::string const& members)
+std::string attribute_class(std::string const& class_prefix, std::string const& name,
+  std::string const& type, std::string const& mutability, std::string const& members,
+  std::string const& additional_ctor_args, std::string const& attribute_base_class)
 {
-  return fmt::format(ATTRIBUTE_CLASS_TEMPLATE, class_prefix, name, type, mutability, members);
+  return fmt::format(ATTRIBUTE_CLASS_TEMPLATE, class_prefix, name, type, mutability,
+    members, additional_ctor_args, attribute_base_class);
+}
+
+std::string read_value_type(attribute_type_t const& type)
+{
+  switch (type.rank)
+  {
+  default:
+  case attribute_rank_t::scalar:
+    return tango_type(type);
+
+  case attribute_rank_t::spectrum:
+    return fmt::format("std::vector<{0}>", tango_type(type.type, false));
+
+  case attribute_rank_t::image:
+    return fmt::format("image<{0}>", tango_type(type.type, false));
+  }
+}
+
+std::string write_temporary_type(attribute_type_t const& type)
+{
+  switch (type.rank)
+  {
+  default:
+  case attribute_rank_t::scalar:
+    return tango_type(type);
+
+  case attribute_rank_t::spectrum:
+  case attribute_rank_t::image:
+    return tango_type(type.type, false) + " const*"s;
+  };
 }
 
 std::string attribute_class(std::string const& ds_name, attribute const& input)
 {
   std::ostringstream str;
 
+  std::string additional_ctor_args;
+  std::string attribute_base_class;
+  switch (input.type.rank)
+  {
+  case attribute_rank_t::image:
+    additional_ctor_args = fmt::format(", {0}, {1}", input.type.max_size[0], input.type.max_size[1]);
+    attribute_base_class = "Tango::ImageAttr";
+    break;
+  case attribute_rank_t::spectrum:
+    additional_ctor_args = fmt::format(", {0}", input.type.max_size[0]);
+    attribute_base_class = "Tango::SpectrumAttr";
+    break;
+  default:
+  case attribute_rank_t::scalar:
+    attribute_base_class = "Tango::Attr";
+    break;
+  };
   if (is_readable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE, ds_name,
-      tango_type(input.type), input.name.snake_cased(), cpp_type(input.type));
+    std::string set_value_args;
+    if (input.type.rank == attribute_rank_t::spectrum)
+    {
+      set_value_args = "read_value.data(), read_value.size()"s;
+    }
+    else if (input.type.rank == attribute_rank_t::image)
+    {
+      set_value_args = "read_value.data.data(), read_value.width, read_value.height"s;
+    }
+    else
+    {
+      set_value_args = "&read_value"s;
+    }
+
+    str << fmt::format(ATTRIBUTE_READ_FUNCTION_TEMPLATE,
+      ds_name, read_value_type(input.type), input.name.snake_cased(),
+      cpp_type(input.type), set_value_args);
   }
 
   if (is_writable(input.access))
   {
-    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, tango_type(input.type), input.name.snake_cased());
+    std::string argument = "arg"s;
+    if (input.type.rank == attribute_rank_t::spectrum)
+    {
+      argument = fmt::format("std::vector<{0}>{{arg, arg+attr.get_w_dim_x()}}", cpp_type(input.type.type, false));
+    }
+    else if (input.type.rank == attribute_rank_t::image)
+    {
+      // This is quite ugly. Could maybe use generic Tango::WAttribute to image<T> conversion code
+      argument = fmt::format("image<{0}>{{std::vector<{0}>{{arg, arg+(attr.get_w_dim_x()*attr.get_w_dim_y())}},\n        static_cast<std::size_t>(attr.get_w_dim_x()),\n        static_cast<std::size_t>(attr.get_w_dim_y())}}", cpp_type(input.type.type, false));
+    }
+
+    str << fmt::format(ATTRIBUTE_WRITE_FUNCTION_TEMPLATE, ds_name, write_temporary_type(input.type), input.name.snake_cased(), argument);
   }
 
-  return attribute_class(input.name.camel_cased(), input.name.camel_cased(), tango_type_enum(input.type), tango_access_enum(input.access), str.str());
+  // Attribute type. That is just the element type for spectrums and images
+  auto attribute_tango_type = tango_type_enum(input.type.type, false);
+
+  return attribute_class(input.name.camel_cased(), input.name.camel_cased(),
+    attribute_tango_type, tango_access_enum(input.access),
+    str.str(), additional_ctor_args, attribute_base_class);
 }
 
 std::string build_base_class(device_server_spec const& spec)
@@ -318,7 +403,7 @@ constexpr char const* COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE = R"(
     extract(input, arg);
     try
     {{
-      impl->{1}(arg);
+      impl->{2}(prepare<{1}>::argument(arg));
     }}
     catch(...)
     {{
@@ -332,7 +417,7 @@ constexpr char const* COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE = R"(
     extract(input, arg);
     try
     {{
-      return insert(to_tango<{2}>::convert(impl->{1}(arg)));
+      return insert(to_tango<{3}>::convert(impl->{2}(prepare<{1}>::argument(arg))));
     }}
     catch(...)
     {{
@@ -340,11 +425,21 @@ constexpr char const* COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE = R"(
     }}
 )";
 
+std::string command_temporary_type(command_type_t const& type)
+{
+  std::string base = tango_type(type);
+  if (type.is_array)
+  {
+    return base + " const*";
+  }
+  return base;
+}
+
 std::string command_execute_impl(command const& cmd)
 {
-  if (cmd.parameter_type == value_type::void_t)
+  if (cmd.parameter_type.type == value_type::void_t)
   {
-    if (cmd.return_type == value_type::void_t)
+    if (cmd.return_type.type == value_type::void_t)
     {
       return fmt::format(COMMAND_VOID_TO_VOID_EXECUTE_TEMPLATE, cmd.name.snake_cased());
     }
@@ -355,13 +450,17 @@ std::string command_execute_impl(command const& cmd)
   }
   else
   {
-    if (cmd.return_type == value_type::void_t)
+    if (cmd.return_type.type == value_type::void_t)
     {
-      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type), cmd.name.snake_cased());
+      return fmt::format(COMMAND_VALUE_TO_VOID_EXECUTE_TEMPLATE,
+        command_temporary_type(cmd.parameter_type),
+        cpp_type(cmd.parameter_type), cmd.name.snake_cased());
     }
     else
     {
-      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE, tango_type(cmd.parameter_type), cmd.name.snake_cased(), cpp_type(cmd.return_type));
+      return fmt::format(COMMAND_VALUE_TO_VALUE_EXECUTE_TEMPLATE,
+        command_temporary_type(cmd.parameter_type), cpp_type(cmd.parameter_type),
+        cmd.name.snake_cased(), cpp_type(cmd.return_type));
     }
   }
 }
@@ -369,7 +468,11 @@ std::string command_execute_impl(command const& cmd)
 std::string command_class(std::string const& ds_name, command const& input)
 {
   auto execute = command_execute_impl(input);
-  return fmt::format(COMMAND_CLASS_TEMPLATE, input.name.camel_cased(), tango_type_enum(input.parameter_type), tango_type_enum(input.return_type), execute, ds_name);
+  return fmt::format(COMMAND_CLASS_TEMPLATE,
+    input.name.camel_cased(),
+    tango_type_enum(input.parameter_type),
+    tango_type_enum(input.return_type),
+    execute, ds_name);
 }
 
 std::string load_device_properties_impl(device_server_spec const& spec)
@@ -401,7 +504,7 @@ std::string load_device_properties_impl(device_server_spec const& spec)
   for (auto const& device_property : spec.device_properties)
   {
     init_list << fmt::format("\"{0}\",", device_property.name.camel_cased());
-    loader_code << fmt::format(LOAD_TEMPLATE, index++, device_property.name.snake_cased(), cpp_type(device_property.type));
+    loader_code << fmt::format(LOAD_TEMPLATE, index++, device_property.name.snake_cased(), cpp_type(device_property.type, false));
   }
 
   return fmt::format(IMPL_TEMPLATE, spec.device_properties_name, init_list.str(), loader_code.str());
@@ -533,7 +636,7 @@ std::string build_device_properties_struct(device_server_spec const& spec)
   std::ostringstream str;
   for (auto const& device_property : spec.device_properties)
   {
-    str << fmt::format("  {0} {1}{{}};\n", cpp_type(device_property.type), device_property.name.snake_cased());
+    str << fmt::format("  {0} {1}{{}};\n", cpp_type(device_property.type, false), device_property.name.snake_cased());
   }
   return fmt::format(DEVICE_PROPERTIES_TEMPLATE, spec.device_properties_name, str.str());
 }
@@ -567,13 +670,24 @@ constexpr char const* HULA_HEADER_HEADER = R"(// Generated by hula. DO NOT MODIF
 #include <memory>
 #include <cstdint>
 #include <vector>
+#include <algorithm>
 
 namespace hula {
 
-template <typename element_type>
+template <typename T>
 struct image
 {
-  std::vector<element_type> data;
+  template <typename X>
+  static image cast(image<X> const& rhs)
+  {
+    std::vector<T> data;
+    auto N = rhs.data.size();
+    data.resize(rhs.data.size());
+    std::transform(rhs.data.begin(), rhs.data.end(), data.begin(), [](auto v) {return static_cast<T>(v);});
+    return image<T>{std::move(data), rhs.width, rhs.height};
+  }
+
+  std::vector<T> data;
   std::size_t width = 0;
   std::size_t height = 0;
 };
@@ -628,6 +742,38 @@ struct to_tango
   }
 };
 
+template <class T, class X>
+inline void assign_to(std::vector<T>& lhs, std::vector<X> const& rhs)
+{
+  lhs.resize(rhs.size());
+  for (std::size_t i = 0, ie = rhs.size(); i < ie; ++i)
+    lhs[i] = static_cast<T>(rhs[i]);
+}
+
+
+template <class T>
+struct prepare
+{
+  template <class X>
+  static T argument(X v)
+  {
+    return v;
+  }
+};
+
+template <class T>
+struct prepare<std::vector<T>>
+{
+  template <class S>
+  static std::vector<T> argument(_CORBA_Unbounded_Sequence<S> const* rhs)
+  {
+    std::vector<T> result(rhs->length());
+    for (std::size_t i = 0, ie = result.size(); i < ie; ++i)
+      result[i] = (*rhs)[i];
+    return result;
+  }
+};
+
 // std::int32_t and Tango::DevLong are not the same on some OSes, e.g. Win32
 template <>
 struct to_tango<std::int32_t>
@@ -672,6 +818,45 @@ struct to_tango<image<std::uint16_t>>
   static void assign(Tango::EncodedAttribute& lhs, image<std::uint16_t>& rhs)
   {
     lhs.encode_gray16(rhs.data.data(), rhs.width, rhs.height);
+  }
+};
+
+// NOTE: these instantiations do not currently overlap with the uint16 and uint8 variants,
+// because we do not have those as basic datatypes yet
+template <class T>
+struct to_tango<image<T>>
+{
+  template <class X>
+  static void assign(image<X>& lhs, image<T> const& rhs)
+  {
+    lhs = image<X>::cast(rhs);
+  }
+};
+
+template <>
+struct to_tango<std::vector<std::int32_t>>
+{
+  static void assign(std::vector<Tango::DevLong>& lhs, std::vector<std::int32_t> const& rhs)
+  {
+    assign_to(lhs, rhs);
+  }
+};
+
+template <>
+struct to_tango<std::vector<double>>
+{
+  static void assign(std::vector<Tango::DevDouble>& lhs, std::vector<double> const& rhs)
+  {
+    assign_to(lhs, rhs);
+  }
+};
+
+template <>
+struct to_tango<std::vector<float>>
+{
+  static void assign(std::vector<Tango::DevFloat>& lhs, std::vector<float> const& rhs)
+  {
+    assign_to(lhs, rhs);
   }
 };
 

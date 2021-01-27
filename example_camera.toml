@@ -37,6 +37,19 @@ name = "report"
 return_type = "float"
 parameter_type = "void"
 
+[[attributes]]
+name = "image"
+type = "image/8"
+access = ["read"]
+
+[[attributes]]
+name = "raw_image"
+type = "int32[2048,2048]" # Would ideally use int16 here, but that is not available yet
+
+[[attributes]]
+name = "histogram"
+type = "int32[65535]"
+
 [[commands]]
 name = "act"
 return_type = "void"

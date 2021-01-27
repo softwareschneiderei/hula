@@ -59,6 +59,21 @@ public:
     return "You said " + rhs + " @ " + address_;
   }
 
+  image<std::uint8_t> read_image() override
+  {
+    return {};
+  }
+
+  image<std::int32_t> read_raw_image() override
+  {
+    return {};
+  }
+
+  std::vector<std::int32_t> read_histogram() override
+  {
+    return {};
+  }
+
   operating_state_result operating_state() override
   {
     return {device_state::on, "Powered on!"};
@@ -77,37 +92,53 @@ public:
   camera_stand(hula::camera_stand_properties const& properties)
   {
   }
-private:
 
-  // Inherited via camera_stand_base
-  virtual std::string read_notes() override
+  std::string read_notes() override
   {
     return notes_;
   }
-  virtual void write_notes(std::string const& rhs) override
+
+  void write_notes(std::string const& rhs) override
   {
     notes_ = rhs;
   }
-  virtual double read_position_x() override
+
+  std::vector<double> read_position() override
   {
-    return actual_x_;
+    return {actual_x_, actual_y_};
   }
-  virtual double read_position_y() override
+
+  void write_position(std::vector<double> const& rhs) override
   {
-    return actual_y_;
+    actual_x_ = rhs.at(0);
+    actual_y_ = rhs.at(1);
   }
-  virtual void move_x(double rhs) override
+
+  void move(std::vector<double> const& rhs) override
   {
-    target_x_ = rhs;
+    target_x_ = rhs.at(0);
+    target_y_ = rhs.at(1);
   }
-  virtual void move_y(double rhs) override
-  {
-    target_y_ = rhs;
-  }
-  virtual void act() override
+
+  void act() override
   {
     actual_x_ = target_x_;
     actual_y_ = target_y_;
+  }
+
+  std::vector<std::int32_t> read_steps() override
+  {
+    return std::vector<std::int32_t>();
+  }
+
+  image<std::int32_t> read_label_image() override
+  {
+    return label_image_;
+  }
+
+  void write_label_image(image<std::int32_t> const& rhs) override
+  {
+    label_image_ = rhs;
   }
 
 private:
@@ -118,6 +149,7 @@ private:
   double actual_y_ = 0.;
 
   std::string notes_;
+  image<std::int32_t> label_image_;
 };
 
 int main(int argc, char* argv[])

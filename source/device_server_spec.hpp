@@ -51,7 +51,7 @@ namespace toml
     static value_type from_toml(value const& v)
     {
       auto const& code = v.as_string();
-      return from_input_type(code);
+      return from_input_type(static_cast<std::string const&>(code));
     }
   };
 
@@ -75,18 +75,39 @@ struct device_property
   value_type type = value_type::void_t;
 };
 
+struct attribute_type_t
+{
+  attribute_type_t() = default;
+  explicit attribute_type_t(toml::value const& v);
+  explicit attribute_type_t(std::string const& v);
+
+  value_type type = value_type::void_t;
+  attribute_rank_t rank = attribute_rank_t::scalar;
+  std::array<std::uint32_t, 2> max_size{};
+};
+
+struct command_type_t
+{
+  command_type_t() = default;
+  explicit command_type_t(toml::value const& v);
+  explicit command_type_t(std::string const& v);
+
+  value_type type = value_type::void_t;
+  bool is_array = false;
+};
+
 struct attribute
 {
   attribute() = default;
   explicit attribute(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
-  , type(toml::find<value_type>(v, "type"))
+  , type(toml::find<attribute_type_t>(v, "type"))
   , access(toml::find_or<access_type>(v, "access", access_type::read_only))
   {
   }
 
   uncased_name name;
-  value_type type = value_type::void_t;
+  attribute_type_t type;
   access_type access = access_type::read_only;
 };
 
@@ -95,14 +116,14 @@ struct command
   command() = default;
   explicit command(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
-  , return_type(toml::find<value_type>(v, "return_type"))
-  , parameter_type(toml::find<value_type>(v, "parameter_type"))
+  , return_type(toml::find<command_type_t>(v, "return_type"))
+  , parameter_type(toml::find<command_type_t>(v, "parameter_type"))
   {
   }
 
   uncased_name name;
-  value_type return_type = value_type::void_t;
-  value_type parameter_type = value_type::void_t;
+  command_type_t return_type;
+  command_type_t parameter_type;
 };
 
 struct raw_device_server_spec
@@ -146,3 +167,52 @@ struct device_server_spec : raw_device_server_spec
   std::string header_name;
   std::string grouping_namespace_name;
 };
+
+// Facades for the type lookup
+inline char const* tango_type(command_type_t const& type)
+{
+  return tango_type(type.type, type.is_array);
+}
+
+inline char const* tango_type_enum(command_type_t const& type)
+{
+  return tango_type_enum(type.type, type.is_array);
+}
+
+inline char const* cpp_type(command_type_t const& type)
+{
+  return cpp_type(type.type, type.is_array);
+}
+
+inline char const* cpp_parameter_list(command_type_t const& type)
+{
+  return cpp_parameter_list(type.type, type.is_array);
+}
+
+inline char const* tango_type(attribute_type_t const& type)
+{
+  return tango_type(type.type, type.rank != attribute_rank_t::scalar);
+}
+
+inline char const* tango_type_enum(attribute_type_t const& type)
+{
+  return tango_type_enum(type.type, type.rank != attribute_rank_t::scalar);
+}
+
+inline std::string cpp_type(attribute_type_t const& type)
+{
+  if (type.rank == attribute_rank_t::image)
+  {
+    return fmt::format("image<{0}>", cpp_type(type.type, false));
+  }
+  return cpp_type(type.type, type.rank != attribute_rank_t::scalar);
+}
+
+inline std::string cpp_parameter_list(attribute_type_t const& type)
+{
+  if (type.rank == attribute_rank_t::image)
+  {
+    return fmt::format("image<{0}> const& rhs", cpp_type(type.type, false));
+  }
+  return cpp_parameter_list(type.type, type.rank != attribute_rank_t::scalar);
+}
