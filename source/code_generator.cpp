@@ -732,10 +732,12 @@ namespace {
 template <class T>
 struct to_tango
 {
+  // This is used in commands for insert(...)
   static T convert(T rhs)
   {
     return rhs;
   }
+  // This is used to assign to read members in attributes
   static void assign(T& lhs, T rhs)
   {
     lhs = rhs;
@@ -750,6 +752,19 @@ inline void assign_to(std::vector<T>& lhs, std::vector<X> const& rhs)
     lhs[i] = static_cast<T>(rhs[i]);
 }
 
+template <class TangoArray, class T>
+inline TangoArray* copied_to_tango(std::vector<T> const& rhs)
+{
+    auto result = std::make_unique<TangoArray>();
+    if (!rhs.empty())
+    {
+      std::size_t N = rhs.size();
+      result->length(N);
+      for (std::size_t i = 0; i < N; ++i)
+        (*result)[i] = rhs[i];
+    }
+    return result.release();
+}
 
 template <class T>
 struct prepare
@@ -836,6 +851,11 @@ struct to_tango<image<T>>
 template <>
 struct to_tango<std::vector<std::int32_t>>
 {
+  static Tango::DevVarLongArray* convert(std::vector<std::int32_t> const& rhs)
+  {
+    return copied_to_tango<Tango::DevVarLongArray>(rhs);
+  }
+
   static void assign(std::vector<Tango::DevLong>& lhs, std::vector<std::int32_t> const& rhs)
   {
     assign_to(lhs, rhs);
@@ -845,6 +865,11 @@ struct to_tango<std::vector<std::int32_t>>
 template <>
 struct to_tango<std::vector<double>>
 {
+  static Tango::DevVarDoubleArray* convert(std::vector<double> const& rhs)
+  {
+    return copied_to_tango<Tango::DevVarDoubleArray>(rhs);
+  }
+
   static void assign(std::vector<Tango::DevDouble>& lhs, std::vector<double> const& rhs)
   {
     assign_to(lhs, rhs);
@@ -854,6 +879,11 @@ struct to_tango<std::vector<double>>
 template <>
 struct to_tango<std::vector<float>>
 {
+  static Tango::DevVarFloatArray* convert(std::vector<double> const& rhs)
+  {
+    return copied_to_tango<Tango::DevVarFloatArray>(rhs);
+  }
+
   static void assign(std::vector<Tango::DevFloat>& lhs, std::vector<float> const& rhs)
   {
     assign_to(lhs, rhs);
