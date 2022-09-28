@@ -545,6 +545,13 @@ std::string set_default_properties_impl(device_server_spec const& spec)
   return str.str();
 }
 
+void property_snippet(std::ostringstream& str, std::string const& method_name, std::string const& value)
+{
+  if (value.empty())
+    return;
+  str << fmt::format("\n      properties.{0}(\"{1}\");", method_name, value);
+}
+
 std::string build_attribute_factory_snippet(attribute const& attribute)
 {
   constexpr char const* CREATE_ATTRIBUTE_TEMPLATE = R"(
@@ -557,18 +564,18 @@ std::string build_attribute_factory_snippet(attribute const& attribute)
     }}
 )";
   auto variable_name = attribute.name.dromedary_cased();
+
   std::ostringstream extra_properties;
-  if (!attribute.unit.empty())
+  std::tuple<char const*, std::string> methods_and_values[] = {
+    {"set_unit", attribute.unit},
+    {"set_min_value", attribute.min_value},
+    {"set_max_value", attribute.max_value},
+  };
+  for (auto& [method_name, value] : methods_and_values)
   {
-    extra_properties << fmt::format("\n      properties.set_unit(\"{0}\");", attribute.unit);
-  }
-  if (!attribute.min_value.empty())
-  {
-    extra_properties << fmt::format("\n      properties.set_min_value(\"{0}\");", attribute.min_value);
-  }
-  if (!attribute.max_value.empty())
-  {
-    extra_properties << fmt::format("\n      properties.set_max_value(\"{0}\");", attribute.max_value);
+    if (value.empty())
+      continue;
+    extra_properties << fmt::format("\n      properties.{0}(\"{1}\");", method_name, value);
   }
 
   return fmt::format(CREATE_ATTRIBUTE_TEMPLATE, variable_name, attribute.name.camel_cased(), extra_properties.str(),
