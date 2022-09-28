@@ -80,6 +80,15 @@ access_type toml::from<access_type>::from_toml(value const& v)
   return access_type::read_only;
 }
 
+display_level_t toml::from<display_level_t>::from_toml(value const& v)
+{
+  if (v.as_string() == "operator")
+    return display_level_t::operator_level;
+  if (v.as_string() == "expert")
+    return display_level_t::expert_level;
+  throw std::invalid_argument("Invalid attribute display level: " + v.as_string().str);
+}
+
 attribute_type_t::attribute_type_t(toml::value const& rhs)
 // Need an explicit type here to convert from toml::string to std::string
 : attribute_type_t(static_cast<std::string const&>(rhs.as_string()))

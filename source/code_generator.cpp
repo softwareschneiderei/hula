@@ -29,6 +29,18 @@ constexpr const char* tango_access_enum(access_type v)
   }
 }
 
+constexpr const char* tango_display_level(display_level_t v)
+{
+  switch (v)
+  {
+  default:
+  case display_level_t::operator_level:
+    return "Tango::OPERATOR";
+  case display_level_t::expert_level:
+    return "Tango::EXPERT";
+  }
+}
+
 constexpr char const* DEVICE_PROPERTIES_TEMPLATE = R"(
 struct {0}
 {{
@@ -533,20 +545,43 @@ std::string set_default_properties_impl(device_server_spec const& spec)
   return str.str();
 }
 
-std::string build_device_class(device_server_spec const& spec)
+std::string build_attribute_factory_snippet(attribute const& attribute)
 {
   constexpr char const* CREATE_ATTRIBUTE_TEMPLATE = R"(
     {{
       auto {0} = new {1}Attrib();
-      Tango::UserDefaultAttrProp properties{{}};
+      Tango::UserDefaultAttrProp properties{{}};{2}
       {0}->set_default_properties(properties);
+      {0}->set_disp_level({3});
       attributes.push_back({0});
     }}
 )";
+  auto variable_name = attribute.name.dromedary_cased();
+  std::ostringstream extra_properties;
+  if (!attribute.unit.empty())
+  {
+    extra_properties << fmt::format("\n      properties.set_unit(\"{0}\");", attribute.unit);
+  }
+  if (!attribute.min_value.empty())
+  {
+    extra_properties << fmt::format("\n      properties.set_min_value(\"{0}\");", attribute.min_value);
+  }
+  if (!attribute.max_value.empty())
+  {
+    extra_properties << fmt::format("\n      properties.set_max_value(\"{0}\");", attribute.max_value);
+  }
+
+  return fmt::format(CREATE_ATTRIBUTE_TEMPLATE, variable_name, attribute.name.camel_cased(), extra_properties.str(),
+    tango_display_level(attribute.display_level));
+
+}
+
+std::string build_device_class(device_server_spec const& spec)
+{
   std::ostringstream attribute_factory_impl;
   for (auto const& attribute : spec.attributes)
   {
-    attribute_factory_impl << fmt::format(CREATE_ATTRIBUTE_TEMPLATE, attribute.name.dromedary_cased(), attribute.name.camel_cased());
+    attribute_factory_impl << build_attribute_factory_snippet(attribute);
   }
   constexpr char const* CREATE_COMMAND_TEMPLATE = R"(command_list.push_back(new {0}Command());)";
 

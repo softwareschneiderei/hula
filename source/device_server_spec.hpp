@@ -11,6 +11,12 @@ enum class access_type
   read_write,
 };
 
+enum class display_level_t
+{
+  operator_level,
+  expert_level,
+};
+
 inline bool is_readable(access_type rhs)
 {
   switch (rhs)
@@ -60,6 +66,12 @@ namespace toml
   {
     static access_type from_toml(value const& v);
   };
+
+  template<>
+  struct from<display_level_t>
+  {
+    static display_level_t from_toml(value const& v);
+  };
 }
 
 struct device_property
@@ -103,12 +115,20 @@ struct attribute
   : name(toml::find<std::string>(v, "name"))
   , type(toml::find<attribute_type_t>(v, "type"))
   , access(toml::find_or<access_type>(v, "access", access_type::read_only))
+  , min_value(toml::find_or<std::string>(v, "min_value", ""))
+  , max_value(toml::find_or<std::string>(v, "max_value", ""))
+  , unit(toml::find_or<std::string>(v, "unit", ""))
+  , display_level(toml::find_or<display_level_t>(v, "display_level", display_level_t::operator_level))
   {
   }
 
   uncased_name name;
   attribute_type_t type;
   access_type access = access_type::read_only;
+  std::string min_value;
+  std::string max_value;
+  std::string unit;
+  display_level_t display_level = display_level_t::operator_level;
 };
 
 struct command
