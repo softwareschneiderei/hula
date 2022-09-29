@@ -7,6 +7,7 @@ type = "int32"
 [[device_properties]]
 name = "address"
 type = "string"
+description = "IP address for the camera"
 
 [[attributes]]
 name = "binning"

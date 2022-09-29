@@ -536,14 +536,14 @@ std::string set_default_properties_impl(device_server_spec const& spec)
     // {0}
     {{
       std::string name = "{0}";
-      std::string description;
+      std::string description = "{1}";
       add_wiz_dev_prop(name, description);
     }})";
 
   std::ostringstream str;
   for (auto const& device_property : spec.device_properties)
   {
-    str << fmt::format(DEFAULTER_IMPL, device_property.name.camel_cased());
+    str << fmt::format(DEFAULTER_IMPL, device_property.name.camel_cased(), device_property.description);
   }
   return str.str();
 }

@@ -79,11 +79,13 @@ struct device_property
   device_property() = default;
   explicit device_property(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
+  , description(toml::find_or<std::string>(v, "description", ""))
   , type(toml::find<value_type>(v, "type"))
   {
   }
 
   uncased_name name;
+  std::string description;
   value_type type = value_type::void_t;
 };
 
