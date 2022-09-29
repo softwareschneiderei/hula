@@ -12,10 +12,13 @@ type = "string"
 name = "binning"
 type = "int32"
 access = ["read", "write"]
+min_value = "1"
+max_value = "8"
 
 [[attributes]]
 name = "exposure_time"
 type = "float"
+unit = "ms"
 
 [[attributes]]
 name = "notes"
@@ -45,6 +48,7 @@ access = ["read"]
 [[attributes]]
 name = "raw_image"
 type = "int32[2048,2048]" # Would ideally use int16 here, but that is not available yet
+display_level = "expert"
 
 [[attributes]]
 name = "histogram"

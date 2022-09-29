@@ -378,12 +378,12 @@ class {0}Command : public Tango::Command
 {{
 public:
   {0}Command()
-  : Tango::Command("{0}", {1}, {2}, "", "", Tango::OPERATOR)
+  : Tango::Command("{0}", {1}, {2}, "{3}", "{4}", {5})
   {{}}
 
   CORBA::Any* execute(Tango::DeviceImpl* dev, CORBA::Any const& input) final
   {{
-    auto impl = {4}::get(dev);{3}  }}
+    auto impl = {7}::get(dev);{6}  }}
 }};
 )";
 
@@ -484,6 +484,9 @@ std::string command_class(std::string const& ds_name, command const& input)
     input.name.camel_cased(),
     tango_type_enum(input.parameter_type),
     tango_type_enum(input.return_type),
+    input.parameter_description,
+    input.return_description,
+    tango_display_level(input.display_level),
     execute, ds_name);
 }
 
