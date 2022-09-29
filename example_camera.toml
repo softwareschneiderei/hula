@@ -59,8 +59,11 @@ type = "int32[65535]"
 name = "act"
 return_type = "void"
 parameter_type = "float"
+parameter_description = "How strong to act"
 
 [[commands]]
 name = "talk"
 return_type = "string"
+return_description = "The response"
 parameter_type = "string"
+parameter_description = "What to say?"
