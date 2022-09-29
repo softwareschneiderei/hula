@@ -115,6 +115,7 @@ struct attribute
   : name(toml::find<std::string>(v, "name"))
   , type(toml::find<attribute_type_t>(v, "type"))
   , access(toml::find_or<access_type>(v, "access", access_type::read_only))
+  , description(toml::find_or<std::string>(v, "description", ""))
   , min_value(toml::find_or<std::string>(v, "min_value", ""))
   , max_value(toml::find_or<std::string>(v, "max_value", ""))
   , unit(toml::find_or<std::string>(v, "unit", ""))
@@ -125,6 +126,7 @@ struct attribute
   uncased_name name;
   attribute_type_t type;
   access_type access = access_type::read_only;
+  std::string description;
   std::string min_value;
   std::string max_value;
   std::string unit;

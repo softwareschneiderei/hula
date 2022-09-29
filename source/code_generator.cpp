@@ -548,13 +548,6 @@ std::string set_default_properties_impl(device_server_spec const& spec)
   return str.str();
 }
 
-void property_snippet(std::ostringstream& str, std::string const& method_name, std::string const& value)
-{
-  if (value.empty())
-    return;
-  str << fmt::format("\n      properties.{0}(\"{1}\");", method_name, value);
-}
-
 std::string build_attribute_factory_snippet(attribute const& attribute)
 {
   constexpr char const* CREATE_ATTRIBUTE_TEMPLATE = R"(
@@ -570,6 +563,7 @@ std::string build_attribute_factory_snippet(attribute const& attribute)
 
   std::ostringstream extra_properties;
   std::tuple<char const*, std::string> methods_and_values[] = {
+    {"set_description", attribute.description},
     {"set_unit", attribute.unit},
     {"set_min_value", attribute.min_value},
     {"set_max_value", attribute.max_value},
