@@ -7,15 +7,19 @@ type = "int32"
 [[device_properties]]
 name = "address"
 type = "string"
+description = "IP address for the camera"
 
 [[attributes]]
 name = "binning"
 type = "int32"
 access = ["read", "write"]
+min_value = "1"
+max_value = "8"
 
 [[attributes]]
 name = "exposure_time"
 type = "float"
+unit = "ms"
 
 [[attributes]]
 name = "notes"
@@ -45,6 +49,7 @@ access = ["read"]
 [[attributes]]
 name = "raw_image"
 type = "int32[2048,2048]" # Would ideally use int16 here, but that is not available yet
+display_level = "expert"
 
 [[attributes]]
 name = "histogram"
@@ -54,8 +59,11 @@ type = "int32[65535]"
 name = "act"
 return_type = "void"
 parameter_type = "float"
+parameter_description = "How strong to act"
 
 [[commands]]
 name = "talk"
 return_type = "string"
+return_description = "The response"
 parameter_type = "string"
+parameter_description = "What to say?"

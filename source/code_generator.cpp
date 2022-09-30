@@ -29,6 +29,18 @@ constexpr const char* tango_access_enum(access_type v)
   }
 }
 
+constexpr const char* tango_display_level(display_level_t v)
+{
+  switch (v)
+  {
+  default:
+  case display_level_t::operator_level:
+    return "Tango::OPERATOR";
+  case display_level_t::expert_level:
+    return "Tango::EXPERT";
+  }
+}
+
 constexpr char const* DEVICE_PROPERTIES_TEMPLATE = R"(
 struct {0}
 {{
@@ -366,12 +378,12 @@ class {0}Command : public Tango::Command
 {{
 public:
   {0}Command()
-  : Tango::Command("{0}", {1}, {2}, "", "", Tango::OPERATOR)
+  : Tango::Command("{0}", {1}, {2}, "{3}", "{4}", {5})
   {{}}
 
   CORBA::Any* execute(Tango::DeviceImpl* dev, CORBA::Any const& input) final
   {{
-    auto impl = {4}::get(dev);{3}  }}
+    auto impl = {7}::get(dev);{6}  }}
 }};
 )";
 
@@ -472,6 +484,9 @@ std::string command_class(std::string const& ds_name, command const& input)
     input.name.camel_cased(),
     tango_type_enum(input.parameter_type),
     tango_type_enum(input.return_type),
+    input.parameter_description,
+    input.return_description,
+    tango_display_level(input.display_level),
     execute, ds_name);
 }
 
@@ -521,32 +536,56 @@ std::string set_default_properties_impl(device_server_spec const& spec)
     // {0}
     {{
       std::string name = "{0}";
-      std::string description;
+      std::string description = "{1}";
       add_wiz_dev_prop(name, description);
     }})";
 
   std::ostringstream str;
   for (auto const& device_property : spec.device_properties)
   {
-    str << fmt::format(DEFAULTER_IMPL, device_property.name.camel_cased());
+    str << fmt::format(DEFAULTER_IMPL, device_property.name.camel_cased(), device_property.description);
   }
   return str.str();
 }
 
-std::string build_device_class(device_server_spec const& spec)
+std::string build_attribute_factory_snippet(attribute const& attribute)
 {
   constexpr char const* CREATE_ATTRIBUTE_TEMPLATE = R"(
     {{
       auto {0} = new {1}Attrib();
-      Tango::UserDefaultAttrProp properties{{}};
+      Tango::UserDefaultAttrProp properties{{}};{2}
       {0}->set_default_properties(properties);
+      {0}->set_disp_level({3});
       attributes.push_back({0});
     }}
 )";
+  auto variable_name = attribute.name.dromedary_cased();
+
+  std::ostringstream extra_properties;
+  std::tuple<char const*, std::string> methods_and_values[] = {
+    {"set_description", attribute.description},
+    {"set_unit", attribute.unit},
+    {"set_min_value", attribute.min_value},
+    {"set_max_value", attribute.max_value},
+  };
+  for (auto& [method_name, value] : methods_and_values)
+  {
+    if (value.empty())
+      continue;
+    extra_properties << fmt::format("\n      properties.{0}(\"{1}\");", method_name, value);
+  }
+
+  return fmt::format(CREATE_ATTRIBUTE_TEMPLATE, variable_name, attribute.name.camel_cased(), extra_properties.str(),
+    tango_display_level(attribute.display_level));
+
+}
+
+std::string build_device_class(device_server_spec const& spec)
+{
   std::ostringstream attribute_factory_impl;
   for (auto const& attribute : spec.attributes)
   {
-    attribute_factory_impl << fmt::format(CREATE_ATTRIBUTE_TEMPLATE, attribute.name.dromedary_cased(), attribute.name.camel_cased());
+    attribute_factory_impl << build_attribute_factory_snippet(attribute);
   }
   constexpr char const* CREATE_COMMAND_TEMPLATE = R"(command_list.push_back(new {0}Command());)";
 

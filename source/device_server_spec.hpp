@@ -11,6 +11,12 @@ enum class access_type
   read_write,
 };
 
+enum class display_level_t
+{
+  operator_level,
+  expert_level,
+};
+
 inline bool is_readable(access_type rhs)
 {
   switch (rhs)
@@ -60,6 +66,12 @@ namespace toml
   {
     static access_type from_toml(value const& v);
   };
+
+  template<>
+  struct from<display_level_t>
+  {
+    static display_level_t from_toml(value const& v);
+  };
 }
 
 struct device_property
@@ -67,11 +79,13 @@ struct device_property
   device_property() = default;
   explicit device_property(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
+  , description(toml::find_or<std::string>(v, "description", ""))
   , type(toml::find<value_type>(v, "type"))
   {
   }
 
   uncased_name name;
+  std::string description;
   value_type type = value_type::void_t;
 };
 
@@ -103,12 +117,22 @@ struct attribute
   : name(toml::find<std::string>(v, "name"))
   , type(toml::find<attribute_type_t>(v, "type"))
   , access(toml::find_or<access_type>(v, "access", access_type::read_only))
+  , description(toml::find_or<std::string>(v, "description", ""))
+  , min_value(toml::find_or<std::string>(v, "min_value", ""))
+  , max_value(toml::find_or<std::string>(v, "max_value", ""))
+  , unit(toml::find_or<std::string>(v, "unit", ""))
+  , display_level(toml::find_or<display_level_t>(v, "display_level", display_level_t::operator_level))
   {
   }
 
   uncased_name name;
   attribute_type_t type;
   access_type access = access_type::read_only;
+  std::string description;
+  std::string min_value;
+  std::string max_value;
+  std::string unit;
+  display_level_t display_level = display_level_t::operator_level;
 };
 
 struct command
@@ -117,13 +141,22 @@ struct command
   explicit command(toml::value const& v)
   : name(toml::find<std::string>(v, "name"))
   , return_type(toml::find<command_type_t>(v, "return_type"))
+  , return_description(toml::find_or<std::string>(v, "return_description", ""))
   , parameter_type(toml::find<command_type_t>(v, "parameter_type"))
+  , parameter_description(toml::find_or<std::string>(v, "parameter_description", ""))
+  , display_level(toml::find_or<display_level_t>(v, "display_level", display_level_t::operator_level))
   {
   }
 
   uncased_name name;
+
   command_type_t return_type;
+  std::string return_description;
+
   command_type_t parameter_type;
+  std::string parameter_description;
+
+  display_level_t display_level = display_level_t::operator_level;
 };
 
 struct raw_device_server_spec
