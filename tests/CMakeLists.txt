@@ -5,6 +5,6 @@ add_executable(hula_tests
 )
 
 target_link_libraries(hula_tests
-  hula_core
-  CONAN_PKG::catch2
+  PUBLIC hula_core
+  PUBLIC Catch2::Catch2WithMain
 )

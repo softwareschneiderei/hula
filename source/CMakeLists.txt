@@ -12,5 +12,5 @@ target_include_directories(hula_core
   INTERFACE .)
 
 target_link_libraries(hula_core
-  PUBLIC CONAN_PKG::toml11
-  PUBLIC CONAN_PKG::fmt)
+  PUBLIC toml11::toml11
+  PUBLIC fmt::fmt)

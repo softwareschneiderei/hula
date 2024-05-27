@@ -1,13 +1,11 @@
 cmake_minimum_required(VERSION 3.11)
 project(hula)
 
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-  message(FATAL_ERROR "Please run 'conan install' first!")
-endif()
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup(TARGETS)
-
 set(CMAKE_CXX_STANDARD 17)
+
+find_package(toml11 CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(Catch2 CONFIG REQUIRED)
 
 add_subdirectory(source)
 add_subdirectory(tests)
