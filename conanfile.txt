@@ -1,9 +1,10 @@
 [requires]
-toml11/3.6.0
-fmt/7.0.3
+toml11/3.8.1
+fmt/10.2.1
 
-[build_requires]
-catch2/2.13.2
+[test_requires]
+catch2/3.6.0
 
 [generators]
-cmake
+CMakeDeps
+CMakeToolchain
