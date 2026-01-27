@@ -644,7 +644,7 @@ int hula::register_and_run(int argc, char* argv[],
 
     // Run the server
     tg->server_init(false);
-    std::cout << "Ready to accept request" << endl;
+    std::cout << "Ready to accept request" << std::endl;
     tg->server_run();
   }}
   catch (std::exception const& e)
